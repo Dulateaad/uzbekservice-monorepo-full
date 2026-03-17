@@ -1,36 +1,32 @@
 import { hapticFeedback } from '@/lib/telegram';
+import { useLocale } from '@/context/LocaleContext';
 
 interface FlowScreenProps {
   onSelect: (subsection: string) => void;
   onBack?: () => void;
 }
 
-const SUBSECTIONS = [
-  { id: 'popular', emoji: '🔥', title: 'Популярные' },
-  { id: 'paradox', emoji: '🤯', title: 'Парадокс' },
-  { id: 'philosophy', emoji: '🧠', title: 'Философия' },
-  { id: 'absurd', emoji: '😄', title: 'Абсурд' },
-  { id: 'fast', emoji: '⚡', title: 'Быстрые' },
-  { id: 'gaming', emoji: '🎮', title: 'Игровые' },
-];
+const SUBSECTION_IDS = ['popular', 'people', 'askPeople', 'paradox', 'philosophy', 'absurd', 'fast', 'gaming'] as const;
+const EMOJIS: Record<string, string> = { popular: '🔥', people: '👥', askPeople: '🕵️', paradox: '🤯', philosophy: '🧠', absurd: '😄', fast: '⚡', gaming: '🎮' };
 
 export function FlowScreen({ onSelect }: FlowScreenProps) {
+  const { t } = useLocale();
   return (
-    <div className="bg-[var(--tg-theme-bg-color)] text-[var(--tg-theme-text-color)] pb-[env(safe-area-inset-bottom)]">
+    <div className="bg-[var(--app-bg)] text-[var(--app-text)] pb-[env(safe-area-inset-bottom)]">
       <main className="p-4">
-        <p className="text-[var(--tg-theme-hint-color)] mb-4">Выберите тип карточек</p>
+        <p className="text-[var(--app-text-muted)] mb-4">{t.chooseCardType}</p>
         <div className="space-y-2">
-          {SUBSECTIONS.map((s) => (
+          {SUBSECTION_IDS.map((id) => (
             <button
-              key={s.id}
+              key={id}
               onClick={() => {
                 hapticFeedback('light');
-                onSelect(s.id);
+                onSelect(id);
               }}
-              className="w-full p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color)] active:scale-[0.98] transition-transform text-left flex items-center gap-3"
+              className="w-full p-4 rounded-2xl bg-[var(--app-bg-secondary)] active:scale-[0.98] transition-transform text-left flex items-center gap-3 text-[var(--app-text)] border border-[var(--app-border)]"
             >
-              <span className="text-2xl">{s.emoji}</span>
-              <span className="font-medium">{s.title}</span>
+              <span className="text-2xl">{EMOJIS[id]}</span>
+              <span className="font-medium">{t.flowSubsections[id]}</span>
             </button>
           ))}
         </div>

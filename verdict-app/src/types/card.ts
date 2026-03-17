@@ -1,4 +1,4 @@
-export type FlowSubsection = 'popular' | 'paradox' | 'philosophy' | 'absurd' | 'fast' | 'gaming';
+export type FlowSubsection = 'popular' | 'people' | 'askPeople' | 'paradox' | 'philosophy' | 'absurd' | 'fast' | 'gaming';
 export type ChampionMode = 'elimination' | 'round-robin' | 'league';
 export type KnowYourselfSubsection = 'love' | 'family' | 'character' | 'money' | 'lifestyle';
 

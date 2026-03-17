@@ -33,6 +33,12 @@ export function hapticFeedback(type: 'light' | 'medium' | 'heavy' | 'success' | 
   }
 }
 
+export function getTelegramUserId(): string | undefined {
+  const tg = getTelegramWebApp();
+  const user = tg?.initDataUnsafe?.user;
+  return user ? String(user.id) : undefined;
+}
+
 export function shareToTelegram(text: string, url?: string) {
   const tg = getTelegramWebApp();
   if (tg?.switchInlineQuery) {

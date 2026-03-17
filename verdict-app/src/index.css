@@ -2,14 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --tg-theme-bg-color: #ffffff;
-  --tg-theme-text-color: #000000;
-  --tg-theme-hint-color: #999999;
-  --tg-theme-link-color: #2481cc;
-  --tg-theme-button-color: #2481cc;
-  --tg-theme-button-text-color: #ffffff;
-  --tg-theme-secondary-bg-color: #f4f4f5;
+:root,
+[data-theme="dark"] {
+  --app-bg: #0a0a0a;
+  --app-bg-secondary: #1a1a1a;
+  --app-text: #ffffff;
+  --app-text-muted: #9ca3af;
+  --app-border: rgba(255,255,255,0.1);
+  --app-link: #60a5fa;
+  --app-accent: #3b82f6;
+  --app-tab-active: #262626;
+}
+
+[data-theme="light"] {
+  --app-bg: #f8fafc;
+  --app-bg-secondary: #ffffff;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+  --app-border: rgba(0,0,0,0.08);
+  --app-link: #2563eb;
+  --app-accent: #3b82f6;
+  --app-tab-active: #e2e8f0;
 }
 
 * {

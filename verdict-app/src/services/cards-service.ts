@@ -28,6 +28,8 @@ export interface FirestoreCard {
   votesA: number;
   votesB: number;
   createdAt: Timestamp;
+  status?: 'pending' | 'published' | 'rejected';
+  authorId?: string;
 }
 
 function toVerdictCard(docId: string, data: FirestoreCard): VerdictCard {
@@ -49,13 +51,49 @@ function toVerdictCard(docId: string, data: FirestoreCard): VerdictCard {
 
 export async function getCards(category?: string, maxCount = 50): Promise<VerdictCard[]> {
   const col = collection(db, CARDS_COLLECTION);
-  const q = query(col, orderBy('createdAt', 'desc'), limit(maxCount));
+  const q = query(col, orderBy('createdAt', 'desc'), limit(maxCount * 3));
   const snapshot = await getDocs(q);
-  let cards = snapshot.docs.map((d) => toVerdictCard(d.id, d.data() as FirestoreCard));
+  let docs = snapshot.docs.filter((d) => {
+    const data = d.data() as FirestoreCard;
+    const status = data.status ?? 'published';
+    return status === 'published';
+  });
+  let cards = docs.map((d) => toVerdictCard(d.id, d.data() as FirestoreCard));
   if (category) {
     cards = cards.filter((c) => c.category === category);
   }
-  return cards;
+  return cards.slice(0, maxCount);
+}
+
+export async function searchCards(queryText: string, maxCount = 20): Promise<VerdictCard[]> {
+  if (!queryText.trim()) return [];
+  const col = collection(db, CARDS_COLLECTION);
+  const q = query(col, orderBy('createdAt', 'desc'), limit(100));
+  const snapshot = await getDocs(q);
+  const qLower = queryText.toLowerCase().trim();
+  const docs = snapshot.docs.filter((d) => {
+    const data = d.data() as FirestoreCard;
+    const status = data.status ?? 'published';
+    if (status !== 'published') return false;
+    const c = toVerdictCard(d.id, data);
+    return (
+      c.optionA.toLowerCase().includes(qLower) ||
+      c.optionB.toLowerCase().includes(qLower)
+    );
+  });
+  const cards = docs.map((d) => toVerdictCard(d.id, d.data() as FirestoreCard));
+  return cards.slice(0, maxCount);
+}
+
+export async function getCardsByAuthor(authorId: string): Promise<VerdictCard[]> {
+  const col = collection(db, CARDS_COLLECTION);
+  const q = query(col, orderBy('createdAt', 'desc'), limit(50));
+  const snapshot = await getDocs(q);
+  const docs = snapshot.docs.filter((d) => {
+    const data = d.data() as FirestoreCard;
+    return data.authorId === authorId;
+  });
+  return docs.map((d) => toVerdictCard(d.id, d.data() as FirestoreCard));
 }
 
 export async function getCardById(cardId: string): Promise<VerdictCard | null> {
@@ -68,7 +106,7 @@ export async function getCardById(cardId: string): Promise<VerdictCard | null> {
 export async function voteCard(
   cardId: string,
   choice: 'A' | 'B',
-  userId?: string
+  userId?: string | null
 ): Promise<void> {
   const cardRef = doc(db, CARDS_COLLECTION, cardId);
   const batch = writeBatch(db);
@@ -91,7 +129,8 @@ export async function voteCard(
 export async function createCard(
   optionA: string,
   optionB: string,
-  category: string
+  category: string,
+  authorId?: string | null
 ): Promise<string> {
   const validation = validateCard(optionA, optionB);
   if (!validation.valid) {
@@ -100,13 +139,16 @@ export async function createCard(
 
   const col = collection(db, CARDS_COLLECTION);
   const ref = doc(col);
-  await setDoc(ref, {
+  const data: Record<string, unknown> = {
     optionA,
     optionB,
     category,
     votesA: 0,
     votesB: 0,
     createdAt: Timestamp.now(),
-  });
+    status: 'published',
+  };
+  if (authorId) data.authorId = authorId;
+  await setDoc(ref, data);
   return ref.id;
 }
