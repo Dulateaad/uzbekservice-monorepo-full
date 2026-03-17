@@ -13,6 +13,8 @@ class FirestoreAuthState {
   final String? currentPhoneNumber;
   final String? registrationName;
   final String? registrationUserType;
+  final String? registrationIntentId;
+  final String? registrationRole;
 
   const FirestoreAuthState({
     this.user,
@@ -21,6 +23,8 @@ class FirestoreAuthState {
     this.currentPhoneNumber,
     this.registrationName,
     this.registrationUserType,
+    this.registrationIntentId,
+    this.registrationRole,
   });
 
   bool get isAuthenticated => user != null && user!.isVerified;
@@ -37,6 +41,8 @@ class FirestoreAuthState {
     String? currentPhoneNumber,
     String? registrationName,
     String? registrationUserType,
+    String? registrationIntentId,
+    String? registrationRole,
   }) {
     return FirestoreAuthState(
       user: user ?? this.user,
@@ -45,6 +51,8 @@ class FirestoreAuthState {
       currentPhoneNumber: currentPhoneNumber ?? this.currentPhoneNumber,
       registrationName: registrationName ?? this.registrationName,
       registrationUserType: registrationUserType ?? this.registrationUserType,
+      registrationIntentId: registrationIntentId ?? this.registrationIntentId,
+      registrationRole: registrationRole ?? this.registrationRole,
     );
   }
 }
@@ -75,16 +83,30 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
     state = state.copyWith(currentPhoneNumber: phoneNumber);
   }
 
+  // Установка имени для регистрации
+  void setRegistrationName(String name) {
+    state = state.copyWith(registrationName: name);
+  }
+
+  // Установка типа пользователя для регистрации
+  void setRegistrationUserType(String userType) {
+    state = state.copyWith(registrationUserType: userType);
+  }
+
   // Отправка SMS кода с сохранением данных регистрации
   Future<void> sendSmsCode({
     required String phoneNumber,
     required String name,
     required String userType,
+    String? intentId,
+    String? role,
   }) async {
     state = state.copyWith(
       currentPhoneNumber: phoneNumber,
       registrationName: name,
       registrationUserType: userType,
+      registrationIntentId: intentId,
+      registrationRole: role,
     );
     
     final result = await _firebaseAuthService.sendSmsCode(phoneNumber);
@@ -96,7 +118,14 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
   }
 
   // Вход через SMS
-  Future<void> login(String phoneNumber, String smsCode, {String? verificationId}) async {
+  Future<void> login(
+    String phoneNumber, 
+    String smsCode, {
+    String? verificationId,
+    String? registrationName,
+    String? registrationUserType,
+    List<String>? onboardingIntents,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
@@ -111,57 +140,122 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
 
       // Получаем Firebase User после успешной верификации
       final firebaseUser = _firebaseAuthService.currentUser;
-      print('✅ Firebase Auth: Пользователь аутентифицирован: ${firebaseUser?.uid}');
+      if (firebaseUser == null) {
+        throw Exception('Ошибка аутентификации: пользователь не найден');
+      }
+      
+      final firebaseUid = firebaseUser.uid;
+      print('✅ Firebase Auth: Пользователь аутентифицирован: $firebaseUid');
 
-      // Ищем пользователя в Firestore
+      // Ищем пользователя в Firestore сначала по Firebase UID (правильный способ)
       FirestoreUser? user;
       try {
-        user = await FirestoreService.getUserByPhone(phoneNumber);
+        user = await FirestoreService.getUserById(firebaseUid);
+        print('🔍 Поиск пользователя по Firebase UID: ${user != null ? "найден" : "не найден"}');
       } catch (e) {
-        print('⚠️ Firestore недоступен, используем локальные данные: $e');
-        // Если Firestore недоступен, создаем пользователя локально
-        user = _withNotificationDefaults(TestDataService.createTestUser(
-          phoneNumber: phoneNumber,
-          name: state.registrationName ?? 'Пользователь',
-          userType: state.registrationUserType ?? 'client',
-        ));
+        print('⚠️ Ошибка поиска пользователя по Firebase UID: $e');
       }
       
+      // Если не найден по Firebase UID, ищем по телефону (fallback для старых пользователей)
       if (user == null) {
-        // Пользователь не найден - создаем локально с сохраненными данными регистрации
-        print('📝 Создаем пользователя локально для входа');
-        user = _withNotificationDefaults(TestDataService.createTestUser(
-          phoneNumber: phoneNumber,
-          name: state.registrationName ?? 'Пользователь',
-          userType: state.registrationUserType ?? 'client',
-        ));
+        try {
+          final userByPhone = await FirestoreService.getUserByPhone(phoneNumber);
+          if (userByPhone != null) {
+            print('🔍 Найден пользователь по телефону, ID: ${userByPhone.id}, Firebase UID: $firebaseUid');
+            // Всегда используем Firebase UID как ID
+            // Создаем пользователя с правильным Firebase UID
+            user = userByPhone.copyWith(
+              id: firebaseUid,
+              updatedAt: DateTime.now(),
+            );
+            user = _withNotificationDefaults(user);
+            try {
+              // Пытаемся создать пользователя с Firebase UID
+              await FirestoreService.createUser(user);
+              print('✅ Пользователь создан с Firebase UID: $firebaseUid');
+            } catch (e) {
+              print('⚠️ Ошибка при создании пользователя с Firebase UID: $e');
+              // Если документ уже существует, пытаемся обновить
+              try {
+                await FirestoreService.updateUser(user);
+                print('✅ Пользователь обновлен в Firestore');
+              } catch (updateError) {
+                print('⚠️ Не удалось обновить пользователя: $updateError');
+                // Используем пользователя локально
+              }
+            }
+          }
+        } catch (e) {
+          print('⚠️ Firestore недоступен при поиске по телефону: $e');
+        }
+      }
+      
+      // Если пользователь все еще не найден
+      if (user == null) {
+        // Если есть имя в registrationName - это регистрация
+        if (state.registrationName != null && state.registrationName!.isNotEmpty) {
+          print('📝 Создаем нового пользователя (регистрация) с Firebase UID: $firebaseUid');
+          user = _withNotificationDefaults(FirestoreUser(
+            id: firebaseUid,
+            phoneNumber: phoneNumber,
+            name: registrationName ?? state.registrationName ?? 'Пользователь',
+            userType: registrationUserType ?? state.registrationUserType ?? 'client',
+            deviceTokens: const [],
+            notificationPreferences: const {
+              'push': true,
+              'sms': true,
+              'email': true,
+            },
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            isVerified: true,
+            rating: (registrationUserType ?? state.registrationUserType) == 'specialist' ? 0.0 : null,
+            totalOrders: (registrationUserType ?? state.registrationUserType) == 'specialist' ? 0 : null,
+            onboardingIntents: onboardingIntents ?? 
+                (state.registrationIntentId != null ? [state.registrationIntentId!] : null),
+          ));
+          
+          try {
+            await FirestoreService.createUser(user);
+            print('✅ Новый пользователь создан в Firestore: $firebaseUid');
+          } catch (e) {
+            print('⚠️ Не удалось создать пользователя в Firestore: $e');
+            // Продолжаем с локальными данными
+          }
+        } else {
+          // При входе пользователь не найден
+          throw Exception('Пользователь с таким номером не найден. Пожалуйста, создайте аккаунт.');
+        }
+      } else {
+        // Пользователь найден, убеждаемся что ID правильный и обновляем
+        if (user.id != firebaseUid) {
+          print('⚠️ ID пользователя ($user.id) не совпадает с Firebase UID ($firebaseUid). Обновляем.');
+          user = user.copyWith(id: firebaseUid);
+        }
+        user = user.copyWith(
+          id: firebaseUid, // Убеждаемся, что ID правильный
+          isVerified: true,
+          updatedAt: DateTime.now(),
+        );
+        user = _withNotificationDefaults(user);
+        
+        try {
+          // Пытаемся создать, если не существует, иначе обновить
+          try {
+            await FirestoreService.createUser(user);
+            print('✅ Пользователь создан в Firestore: $firebaseUid');
+          } catch (createError) {
+            // Если уже существует, обновляем
+            await FirestoreService.updateUser(user);
+            print('✅ Пользователь обновлен в Firestore: $firebaseUid');
+          }
+        } catch (e) {
+          print('⚠️ Не удалось сохранить пользователя в Firestore: $e');
+          // Продолжаем с локальными данными
+        }
       }
 
-      // Обновляем статус верификации и используем Firebase Auth UID как ID
-      final firebaseUid = firebaseUser?.uid ?? phoneNumber;
-      final verifiedUser = user.copyWith(
-        id: firebaseUid, // Используем Firebase Auth UID
-        isVerified: true,
-        updatedAt: DateTime.now(),
-      );
-      final normalizedUser = _withNotificationDefaults(verifiedUser);
-      
-      // Пытаемся создать или обновить в Firestore
-      try {
-        // Проверяем, существует ли пользователь с таким ID
-        final existingUser = await FirestoreService.getUserById(firebaseUid);
-        if (existingUser != null) {
-          await FirestoreService.updateUser(normalizedUser);
-          print('✅ Пользователь обновлен в Firestore');
-        } else {
-          // Создаем нового пользователя
-          await FirestoreService.createUser(normalizedUser);
-          print('✅ Пользователь создан в Firestore');
-        }
-      } catch (e) {
-        print('⚠️ Не удалось сохранить пользователя в Firestore: $e');
-        // Продолжаем с локальными данными
-      }
+      final normalizedUser = _withNotificationDefaults(user);
 
       state = state.copyWith(
         user: normalizedUser,

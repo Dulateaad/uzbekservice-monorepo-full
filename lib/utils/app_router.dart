@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/firestore_models.dart';
 import '../providers/firestore_auth_provider.dart';
+import '../config/firebase_config.dart';
 import '../screens/splash_screen.dart';
 import '../screens/onboarding/splash_screen.dart' as onboarding;
 import '../screens/onboarding/onboarding_screen.dart';
@@ -13,6 +14,7 @@ import '../screens/auth/sms_verification_screen.dart';
 import '../screens/auth/create_profile_screen.dart';
 import '../screens/auth/oneid_auth_screen.dart';
 import '../screens/auth/specialist_registration_screen.dart';
+import '../screens/auth/specialist_oneid_login_screen.dart';
 import '../screens/main/main_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/home/new_client_home_screen.dart';
@@ -46,6 +48,12 @@ import '../screens/payment/click_payment_screen.dart';
 import '../screens/payment/payment_success_screen.dart';
 import '../screens/legal/privacy_policy_screen.dart';
 import '../screens/legal/terms_of_service_screen.dart';
+import '../screens/tools/tool_detail_screen.dart';
+import '../screens/services/services_screen.dart';
+import '../screens/services/odo_vacancy_webview_screen.dart';
+import '../screens/services/business_hub_webview_screen.dart';
+import '../screens/vacancy/vacancy_list_screen.dart';
+import '../screens/vacancy/vacancy_detail_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -54,10 +62,23 @@ class AppRouter {
       final container = ProviderScope.containerOf(context);
       final authState = container.read(firestoreAuthProvider);
       
-      print('Redirect check: path=${state.uri.path}, authenticated=${authState.isAuthenticated}');
+      // Также проверяем Firebase Auth напрямую
+      final firebaseUser = FirebaseConfig.auth.currentUser;
+      final isFirebaseAuthenticated = firebaseUser != null;
+      
+      print('Redirect check: path=${state.uri.path}, firestoreAuth=${authState.isAuthenticated}, firebaseAuth=$isFirebaseAuthenticated, isLoading=${authState.isLoading}');
+      
+      // Не редиректим пока идет загрузка
+      if (authState.isLoading) {
+        print('Skipping redirect - loading in progress');
+        return null;
+      }
+      
+      // Используем комбинированную проверку: или Firestore провайдер, или Firebase Auth
+      final isAuthenticated = authState.isAuthenticated || isFirebaseAuthenticated;
       
       // Если пользователь не аутентифицирован и не на экранах аутентификации или онбординга
-      if (!authState.isAuthenticated && 
+      if (!isAuthenticated && 
           !state.uri.path.startsWith('/auth') && 
           state.uri.path != '/splash' &&
           state.uri.path != '/onboarding') {
@@ -66,12 +87,12 @@ class AppRouter {
       }
       
       // Если пользователь аутентифицирован, но на экране создания профиля - разрешаем
-      if (authState.isAuthenticated && state.uri.path == '/auth/create-profile') {
+      if (isAuthenticated && state.uri.path == '/auth/create-profile') {
         return null;
       }
       
-      // Если пользователь аутентифицирован и на экране аутентификации
-      if (authState.isAuthenticated && state.uri.path.startsWith('/auth')) {
+      // Если пользователь аутентифицирован и на экране аутентификации (кроме /auth/sms для завершения верификации)
+      if (isAuthenticated && state.uri.path.startsWith('/auth') && state.uri.path != '/auth/sms') {
         print('Redirecting to /home - user authenticated but on auth screen');
         return '/home';
       }
@@ -144,6 +165,10 @@ class AppRouter {
       GoRoute(
         path: '/auth/specialist-registration',
         builder: (context, state) => const SpecialistRegistrationScreen(),
+      ),
+      GoRoute(
+        path: '/auth/specialist-oneid-login',
+        builder: (context, state) => const SpecialistOneIdLoginScreen(),
       ),
       
       // Main App Routes
@@ -260,6 +285,43 @@ class AppRouter {
             builder: (context, state) {
               final chatId = state.pathParameters['chatId']!;
               return ChatScreen(chatId: chatId);
+            },
+          ),
+          // Services
+          GoRoute(
+            path: 'services',
+            builder: (context, state) => const ServicesScreen(),
+            routes: [
+              GoRoute(
+                path: 'business-hub',
+                builder: (context, state) => const BusinessHubWebViewScreen(),
+              ),
+              GoRoute(
+                path: 'odo-vacancy',
+                builder: (context, state) => const VacancyListScreen(),
+              ),
+            ],
+          ),
+          // Vacancy routes
+          GoRoute(
+            path: 'vacancy',
+            builder: (context, state) => const VacancyListScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return VacancyDetailScreen(vacancyId: id);
+                },
+              ),
+            ],
+          ),
+          // Tool / item detail
+          GoRoute(
+            path: 'tool-detail',
+            builder: (context, state) {
+              final item = state.extra as FirestoreToolItem;
+              return ToolDetailScreen(item: item);
             },
           ),
           

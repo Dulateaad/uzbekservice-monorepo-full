@@ -18,11 +18,13 @@ class TopSpecialistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 320,
-      height: 140,
-      margin: const EdgeInsets.only(right: AppConstants.spacingMD),
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 320,
+        height: 140,
+        margin: const EdgeInsets.only(right: AppConstants.spacingMD),
+        decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             AppConstants.surfaceColor,
@@ -53,25 +55,25 @@ class TopSpecialistCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppConstants.radiusXL),
         child: Stack(
-          children: [
-            // Градиентная рамка
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppConstants.primaryColor.withOpacity(0.1),
-                    AppConstants.secondaryColor.withOpacity(0.1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+              children: [
+                // Градиентная рамка
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppConstants.primaryColor.withOpacity(0.1),
+                        AppConstants.secondaryColor.withOpacity(0.1),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            
-            // Контент
-            Padding(
-              padding: const EdgeInsets.all(AppConstants.spacingMD),
-              child: Row(
+                
+                // Контент
+                Padding(
+                  padding: const EdgeInsets.all(AppConstants.spacingMD),
+                  child: Row(
                 children: [
                   // Аватар специалиста
                   Stack(
@@ -278,7 +280,13 @@ class TopSpecialistCard extends StatelessWidget {
                 children: [
                   // Кнопка чата
                   GestureDetector(
-                    onTap: onChat,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      // Останавливаем всплытие события
+                      if (onChat != null) {
+                        onChat!();
+                      }
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
@@ -297,7 +305,13 @@ class TopSpecialistCard extends StatelessWidget {
                   
                   // Кнопка записи с градиентом
                   GestureDetector(
-                    onTap: onBook,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      // Предотвращаем всплытие события на карточку
+                      if (onBook != null) {
+                        onBook!();
+                      }
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -330,6 +344,7 @@ class TopSpecialistCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
