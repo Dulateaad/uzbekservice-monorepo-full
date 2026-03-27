@@ -3,7 +3,7 @@ description: ODO.UZ - Платформа для соединения клиен�
 
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.3+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -14,6 +14,7 @@ dependencies:
   
   # UI
   cupertino_icons: ^1.0.2
+  collection: ^1.19.0
   flutter_localizations:
     sdk: flutter
   
@@ -29,6 +30,9 @@ dependencies:
   http: ^1.1.2
   dio: ^5.4.0
   url_launcher: ^6.2.2
+  
+  # SMS Provider
+  # twilio: ^0.2.0  # Раскомментируйте после получения учетных данных
   # uni_links: ^0.5.1  # Устаревший пакет, закомментирован
   
   # Local Storage
@@ -71,6 +75,24 @@ dependencies:
   # Payment & Security
   crypto: ^3.0.3
   webview_flutter: ^4.4.2
+  
+  # Encryption & Security
+  pointycastle: ^3.7.3
+  encrypt: ^5.0.3
+  flutter_secure_storage: ^9.0.0
+  asn1lib: ^1.5.0
+
+  # Business Hub: Export, AI, OCR
+  excel: ^4.0.6
+  pdf: ^3.10.7
+  printing: ^5.12.0
+  google_generative_ai: ^0.4.3
+  google_mlkit_text_recognition: ^0.11.0
+  share_plus: ^7.2.1
+  path_provider: ^2.1.2
+  csv: ^6.0.0
+  file_picker: ^8.0.0
+  path_drawing: ^1.0.1
 
 dev_dependencies:
   flutter_test:
@@ -82,6 +104,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Generate localization files
+  generate: true
   
   assets:
     - assets/images/
@@ -98,18 +123,18 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/images/logos/logo.png"
   remove_alpha_ios: true
   min_sdk_android: 21
   web:
     generate: true
-    image_path: "assets/images/logo.png"
+    image_path: "assets/images/logos/logo.png"
     background_color: "#ffffff"
     theme_color: "#000000"
   windows:
     generate: true
-    image_path: "assets/images/logo.png"
+    image_path: "assets/images/logos/logo.png"
     icon_size: 48
   macos:
     generate: true
-    image_path: "assets/images/logo.png"
+    image_path: "assets/images/logos/logo.png"

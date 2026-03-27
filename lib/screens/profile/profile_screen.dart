@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../models/firestore_models.dart';
 import '../../providers/firestore_auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/test_data_service.dart';
 import '../../widgets/custom_button.dart';
+import '../../l10n/app_localizations.dart';
+import '../../utils/web_utils.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -14,6 +18,98 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(firestoreAuthProvider);
     final user = authState.user;
+    
+    // Если пользователь не авторизован, показываем экран входа
+    if (!authState.isAuthenticated || user == null) {
+      return Scaffold(
+        backgroundColor: AppConstants.backgroundColor,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  size: 80,
+                  color: AppConstants.primaryColor.withOpacity(0.6),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Войдите в аккаунт',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Чтобы просмотреть профиль и управлять настройками',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppConstants.textSecondary,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      print('🔐 Кнопка "Войти" нажата');
+                      
+                      // Используем несколько способов навигации для надежности
+                      final router = GoRouter.of(context);
+                      if (router.canPop()) {
+                        router.pop();
+                      }
+                      
+                      // Прямой переход через роутер
+                      Future.microtask(() {
+                        try {
+                          router.go('/auth/phone');
+                          print('✅ Переход на /auth/phone выполнен через router.go');
+                        } catch (e) {
+                          print('❌ Ошибка router.go: $e');
+                          // Fallback 1: используем push
+                          try {
+                            router.push('/auth/phone');
+                            print('✅ Переход выполнен через router.push');
+                          } catch (e2) {
+                            print('❌ Ошибка router.push: $e2');
+                            // Fallback 2: используем window.location для веб
+                            if (kIsWeb) {
+                              WebUtils.redirect('/#/auth/phone');
+                              print('✅ Переход выполнен через window.location');
+                            }
+                          }
+                        }
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConstants.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: const Text(
+                      'Войти',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    
     final favoriteSpecialists = TestDataService.getTestSpecialists().take(6).toList();
     
     return Scaffold(
@@ -487,6 +583,13 @@ class ProfileScreen extends ConsumerWidget {
           onTap: () => context.go('/home/profile/specialist'),
         ),
         const SizedBox(height: 16),
+        _ProfileTile(
+          icon: Icons.assignment,
+          title: 'Мои объявления',
+          subtitle: 'Создать и управлять объявлениями услуг',
+          onTap: () => context.go('/home/profile/service-ads'),
+        ),
+        const SizedBox(height: 16),
       ],
       _ProfileTile(
         icon: Icons.history,
@@ -501,6 +604,8 @@ class ProfileScreen extends ConsumerWidget {
         subtitle: 'Сохраненные специалисты',
         onTap: () => context.go('/home/profile/favorites'),
       ),
+      const SizedBox(height: 16),
+      const _LanguageTile(),
       const SizedBox(height: 16),
       _ProfileTile(
         icon: Icons.notifications_active_outlined,
@@ -677,6 +782,151 @@ class ProfileScreen extends ConsumerWidget {
             child: const Text('Выйти'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LanguageTile extends ConsumerWidget {
+  const _LanguageTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(localeProvider);
+    final localeNotifier = ref.read(localeProvider.notifier);
+    final l10n = AppLocalizations.of(context);
+    
+    String languageName;
+    if (l10n != null) {
+      switch (locale.languageCode) {
+        case 'ru':
+          languageName = l10n.russian;
+          break;
+        case 'uz':
+          languageName = l10n.uzbek;
+          break;
+        case 'en':
+          languageName = l10n.english;
+          break;
+        default:
+          languageName = l10n.russian;
+      }
+    } else {
+      languageName = localeNotifier.getLanguageName(locale.languageCode);
+    }
+    
+    return _ProfileTile(
+      icon: Icons.language,
+      title: l10n?.language ?? 'Язык',
+      subtitle: languageName,
+      onTap: () => _showLanguageDialog(context, ref),
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(localeProvider);
+    final localeNotifier = ref.read(localeProvider.notifier);
+    final l10n = AppLocalizations.of(context);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n?.language ?? 'Выберите язык'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LanguageOption(
+              title: l10n?.russian ?? 'Русский',
+              locale: const Locale('ru', 'RU'),
+              currentLocale: locale,
+              onTap: () {
+                localeNotifier.setLocale(const Locale('ru', 'RU'));
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 8),
+            _LanguageOption(
+              title: l10n?.uzbek ?? 'O\'zbekcha',
+              locale: const Locale('uz', 'UZ'),
+              currentLocale: locale,
+              onTap: () {
+                localeNotifier.setLocale(const Locale('uz', 'UZ'));
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 8),
+            _LanguageOption(
+              title: l10n?.english ?? 'English',
+              locale: const Locale('en', 'US'),
+              currentLocale: locale,
+              onTap: () {
+                localeNotifier.setLocale(const Locale('en', 'US'));
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LanguageOption extends StatelessWidget {
+  final String title;
+  final Locale locale;
+  final Locale currentLocale;
+  final VoidCallback onTap;
+
+  const _LanguageOption({
+    required this.title,
+    required this.locale,
+    required this.currentLocale,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = locale.languageCode == currentLocale.languageCode;
+    
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppConstants.primaryColor.withOpacity(0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected 
+                ? AppConstants.primaryColor
+                : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected 
+                      ? AppConstants.primaryColor
+                      : Colors.black87,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: AppConstants.primaryColor,
+                size: 20,
+              ),
+          ],
+        ),
       ),
     );
   }

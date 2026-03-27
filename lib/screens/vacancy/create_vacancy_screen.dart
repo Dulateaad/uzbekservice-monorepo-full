@@ -5,7 +5,7 @@ import '../../constants/app_constants.dart';
 import '../../models/vacancy.dart';
 import '../../providers/vacancy_providers.dart';
 import '../../providers/firestore_auth_provider.dart';
-import '../../services/vacancy_service.dart';
+import '../../l10n/app_localizations.dart';
 
 class CreateVacancyScreen extends ConsumerStatefulWidget {
   const CreateVacancyScreen({super.key});
@@ -23,7 +23,7 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
   final _locationController = TextEditingController();
   final _requirementController = TextEditingController();
 
-  String _selectedSchedule = 'Полный день';
+  String _selectedSchedule = ''; // Будет установлен в build
   String _selectedCategory = 'it';
   UserIntent? _selectedIntent;
   bool _isHot = false;
@@ -62,10 +62,22 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
     final authState = ref.read(firestoreAuthProvider);
     final user = authState.user;
     
-    if (user == null || user.userType != 'company') {
+    if (user == null) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.loginRequired), backgroundColor: Colors.red),
+        );
+        context.go('/auth/phone');
+      }
+      return;
+    }
+    // Компании и специалисты могут создавать вакансии
+    if (user.userType != 'company' && user.userType != 'specialist') {
+      final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Только компании могут создавать вакансии'),
+        SnackBar(
+          content: Text(l10n.onlyCompaniesCanCreate),
           backgroundColor: Colors.red,
         ),
       );
@@ -92,24 +104,35 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
     );
 
     // Сохранить в Firestore через сервис
-    final service = ref.read(vacancyServiceProvider);
-    final success = await service.createVacancy(vacancy);
+    try {
+      final service = ref.read(vacancyServiceProvider);
+      final success = await service.createVacancy(vacancy);
 
-    if (mounted) {
-      if (success) {
+      final l10n = AppLocalizations.of(context)!;
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.vacancyCreated),
+              backgroundColor: Colors.green,
+            ),
+          );
+          ref.invalidate(allVacanciesProvider);
+          context.pop();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.vacancyCreateError),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Вакансия создана!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        // Обновляем список вакансий
-        ref.invalidate(allVacanciesProvider);
-        context.pop();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ошибка при создании вакансии'),
+          SnackBar(
+            content: Text('${AppLocalizations.of(context)!.vacancyCreateError}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -119,9 +142,13 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (_selectedSchedule.isEmpty) {
+      _selectedSchedule = l10n.fullTime;
+    }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Создать вакансию'),
+        title: Text(l10n.createVacancy),
         backgroundColor: AppConstants.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -135,14 +162,14 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               // Заголовок
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Название вакансии *',
-                  hintText: 'Например: Frontend Developer',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.vacancyTitle,
+                  hintText: l10n.vacancyTitleHint,
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Введите название вакансии';
+                    return l10n.enterVacancyTitle;
                   }
                   return null;
                 },
@@ -152,14 +179,14 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               // Компания
               TextFormField(
                 controller: _companyController,
-                decoration: const InputDecoration(
-                  labelText: 'Название компании *',
-                  hintText: 'Например: Tech Solutions',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.companyName,
+                  hintText: l10n.companyNameHint,
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Введите название компании';
+                    return l10n.enterCompanyName;
                   }
                   return null;
                 },
@@ -169,15 +196,15 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               // Описание
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Описание *',
-                  hintText: 'Подробное описание вакансии',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.descriptionLabel,
+                  hintText: l10n.descriptionHint,
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 5,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Введите описание';
+                    return l10n.enterDescription;
                   }
                   return null;
                 },
@@ -187,15 +214,15 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               // Зарплата
               TextFormField(
                 controller: _salaryController,
-                decoration: const InputDecoration(
-                  labelText: 'Зарплата (сум) *',
-                  hintText: '5000000',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.salary,
+                  hintText: l10n.salaryHint,
+                  border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Введите зарплату';
+                    return l10n.enterSalary;
                   }
                   return null;
                 },
@@ -205,14 +232,14 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               // Локация
               TextFormField(
                 controller: _locationController,
-                decoration: const InputDecoration(
-                  labelText: 'Локация *',
-                  hintText: 'Ташкент',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.locationLabel,
+                  hintText: l10n.locationHint,
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Введите локацию';
+                    return l10n.enterLocation;
                   }
                   return null;
                 },
@@ -221,16 +248,16 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
 
               // График
               DropdownButtonFormField<String>(
-                value: _selectedSchedule,
-                decoration: const InputDecoration(
-                  labelText: 'График работы',
-                  border: OutlineInputBorder(),
+                value: _selectedSchedule.isEmpty ? l10n.fullTime : _selectedSchedule,
+                decoration: InputDecoration(
+                  labelText: l10n.workSchedule,
+                  border: const OutlineInputBorder(),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'Полный день', child: Text('Полный день')),
-                  DropdownMenuItem(value: 'Частичная занятость', child: Text('Частичная занятость')),
-                  DropdownMenuItem(value: 'Гибкий график', child: Text('Гибкий график')),
-                  DropdownMenuItem(value: 'Удалённо', child: Text('Удалённо')),
+                items: [
+                  DropdownMenuItem(value: l10n.fullTime, child: Text(l10n.fullTime)),
+                  DropdownMenuItem(value: l10n.partTime, child: Text(l10n.partTime)),
+                  DropdownMenuItem(value: l10n.flexible, child: Text(l10n.flexible)),
+                  DropdownMenuItem(value: l10n.remote, child: Text(l10n.remote)),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -243,9 +270,9 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               // Категория
               DropdownButtonFormField<String>(
                 value: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: 'Категория',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.category,
+                  border: const OutlineInputBorder(),
                 ),
                 items: const [
                   DropdownMenuItem(value: 'it', child: Text('IT')),
@@ -265,16 +292,16 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               // Намерение
               DropdownButtonFormField<UserIntent?>(
                 value: _selectedIntent,
-                decoration: const InputDecoration(
-                  labelText: 'Намерение (опционально)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.intentOptional,
+                  border: const OutlineInputBorder(),
                 ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Не выбрано')),
+                  DropdownMenuItem(value: null, child: Text(l10n.notSelected)),
                   ...UserIntent.values.map((intent) {
                     return DropdownMenuItem(
                       value: intent,
-                      child: Text('${intent.icon} ${intent.title}'),
+                      child: Text('${intent.icon} ${intent.getTitle(l10n)}'),
                     );
                   }),
                 ],
@@ -287,9 +314,9 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
               const SizedBox(height: AppConstants.spacingMD),
 
               // Требования
-              const Text(
-                'Требования',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              Text(
+                l10n.requirementsLabel,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: AppConstants.spacingSM),
               Row(
@@ -297,9 +324,9 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _requirementController,
-                      decoration: const InputDecoration(
-                        hintText: 'Добавить требование',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        hintText: l10n.addRequirement,
+                        border: const OutlineInputBorder(),
                       ),
                       onFieldSubmitted: (_) => _addRequirement(),
                     ),
@@ -326,8 +353,8 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
 
               // Флаги
               CheckboxListTile(
-                title: const Text('Горячая вакансия'),
-                subtitle: const Text('Показывать в топе'),
+                title: Text(l10n.hotVacancyFlag),
+                subtitle: Text(l10n.hotVacancySubtitle),
                 value: _isHot,
                 onChanged: (value) {
                   setState(() {
@@ -336,8 +363,8 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
                 },
               ),
               CheckboxListTile(
-                title: const Text('Срочная вакансия'),
-                subtitle: const Text('Пометить как срочную'),
+                title: Text(l10n.urgentVacancyFlag),
+                subtitle: Text(l10n.urgentVacancySubtitle),
                 value: _isUrgent,
                 onChanged: (value) {
                   setState(() {
@@ -357,9 +384,9 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text(
-                    'Создать вакансию',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  child: Text(
+                    l10n.createVacancy,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

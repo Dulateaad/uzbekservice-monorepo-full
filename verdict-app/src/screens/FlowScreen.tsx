@@ -7,15 +7,24 @@ interface FlowScreenProps {
 }
 
 const SUBSECTION_IDS = ['popular', 'people', 'askPeople', 'paradox', 'philosophy', 'absurd', 'fast', 'gaming'] as const;
-const EMOJIS: Record<string, string> = { popular: '🔥', people: '👥', askPeople: '🕵️', paradox: '🤯', philosophy: '🧠', absurd: '😄', fast: '⚡', gaming: '🎮' };
+const EMOJIS: Record<string, string> = {
+  popular: '🔥',
+  people: '👥',
+  askPeople: '🕵️',
+  paradox: '🤯',
+  philosophy: '🧠',
+  absurd: '😄',
+  fast: '⚡',
+  gaming: '🎮',
+};
 
 export function FlowScreen({ onSelect }: FlowScreenProps) {
   const { t } = useLocale();
   return (
     <div className="bg-[var(--app-bg)] text-[var(--app-text)] pb-[env(safe-area-inset-bottom)]">
-      <main className="p-4">
-        <p className="text-[var(--app-text-muted)] mb-4">{t.chooseCardType}</p>
-        <div className="space-y-2">
+      <main className="p-3">
+        <p className="text-[var(--app-text-muted)] text-sm mb-3">{t.chooseCardType}</p>
+        <div className="space-y-1.5">
           {SUBSECTION_IDS.map((id) => (
             <button
               key={id}
@@ -23,9 +32,9 @@ export function FlowScreen({ onSelect }: FlowScreenProps) {
                 hapticFeedback('light');
                 onSelect(id);
               }}
-              className="w-full p-4 rounded-2xl bg-[var(--app-bg-secondary)] active:scale-[0.98] transition-transform text-left flex items-center gap-3 text-[var(--app-text)] border border-[var(--app-border)]"
+              className="w-full p-3 rounded-xl bg-[var(--app-bg-secondary)] active:scale-[0.98] transition-transform text-left flex items-center gap-3 text-[var(--app-text)] border border-[var(--app-border)]"
             >
-              <span className="text-2xl">{EMOJIS[id]}</span>
+              <span className="text-xl">{EMOJIS[id]}</span>
               <span className="font-medium">{t.flowSubsections[id]}</span>
             </button>
           ))}

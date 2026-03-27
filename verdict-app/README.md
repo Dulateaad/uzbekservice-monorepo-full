@@ -35,19 +35,30 @@ VITE_FIREBASE_STORAGE_BUCKET=verdict.firebasestorage.app
 npm run deploy:firestore
 ```
 
-## 4. Загрузка карточек
+## 4. Загрузка объектов и карточек (рекомендуется)
 
-Через Admin SDK (рекомендуется):
+Архитектура: коллекция **`verdict_objects`** (одна картинка = один объект), **`verdict_cards`** с полями `objectIdA`, `objectIdB` и текстом вариантов. Картинки — **Wikimedia Commons** (бесплатно), без Vertex AI. Подробнее: [IMAGES_SOURCES.md](./IMAGES_SOURCES.md).
 
-1. Firebase Console → verdict-c5e0d → Project Settings → Service Accounts → Generate new private key
-2. Сохранить JSON в `service-account.json`
-3. Выполнить:
+1. Service account JSON → `service-account.json`
+2. Залить объекты + карточки:
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=./service-account.json npm run seed:objects
+```
+
+Полная перезапись коллекций `verdict_objects` и `verdict_cards`:
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=./service-account.json npm run seed:objects:replace
+```
+
+Старый seed без объектов (только текст):
 
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=./service-account.json npm run seed:admin
 ```
 
-Если в Firestore уже есть карточки, но не хватает разделов (например, «Быстрые»):
+Добавить недостающие категории:
 
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=./service-account.json npm run seed:missing
@@ -59,38 +70,27 @@ GOOGLE_APPLICATION_CREDENTIALS=./service-account.json npm run seed:missing
 npm run dev
 ```
 
-## 6. Генерация картинок для карточек (Vertex AI)
+## 6. Картинки (без Vertex AI)
 
-Чтобы у карточек были сгенерированные изображения (поле `imageA` / `imageB`):
+Используйте `npm run seed:objects` — URL из Wikimedia Commons в `scripts/lib/seed-objects-data.ts`. При желании добавьте **Unsplash API** (бесплатный tier) и подставляйте ссылки в объекты.
 
-1. **Включите Firebase Storage** (иначе будет 404 "bucket does not exist"):
-   - Firebase Console → Build → Storage → Get started
-   - Имя бакета см. в Project Settings (обычно `verdict-c5e0d.appspot.com` или `verdict-c5e0d.firebasestorage.app`)
-   - Если бакет `*.firebasestorage.app`, добавьте в `.env`: `VITE_FIREBASE_STORAGE_BUCKET=verdict-c5e0d.firebasestorage.app`
-2. **Включите Vertex AI API** (обязательно, иначе будет 403):
-   - Через консоль: [Enable Vertex AI API](https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=verdict-c5e0d) → Enable
-   - Или через gcloud: `gcloud services enable aiplatform.googleapis.com --project=verdict-c5e0d`
-3. Убедитесь, что в проекте включён **биллинг** (Vertex AI платный).
-4. Авторизация: `gcloud auth application-default login` или положите ключ сервисного аккаунта и задайте `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json`.
-5. Запустите скрипт (генерирует картинки через Imagen 3, заливает в Storage):
-
-```bash
-npm run generate:images
-```
-
-Перегенерация всех картинок (новый промпт/качество):
-
-```bash
-npm run generate:images:force
-```
-
-Промпт: качественные иллюстрации без текста, полный кадр без обрезки.
+Устаревший вариант **Vertex AI / Imagen** (платно, GCP биллинг): `npm run generate:images` — см. комментарий в `scripts/generate-card-images.ts`.
 
 ## 7. Деплой
 
 ```bash
 npm run deploy
 ```
+
+Правила Storage (после включения Storage в консоли):
+
+```bash
+npm run deploy:storage
+```
+
+Полный деплой включая Storage: `npm run deploy:all`.
+
+Если в Telegram **не отображаются картинки** с Wikimedia — см. [IMAGES_SOURCES.md](./IMAGES_SOURCES.md) (зеркалирование в Storage: `npm run mirror:images`).
 
 URL: `https://verdict-c5e0d.web.app`
 

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { hapticFeedback } from '@/lib/telegram';
 import { useLocale } from '@/context/LocaleContext';
 import { searchCards } from '@/services/cards-service';
+import { VoiceInput } from '@/components/VoiceInput';
 import type { VerdictCard } from '@/types/card';
 
 interface SearchScreenProps {
@@ -53,6 +54,7 @@ export function SearchScreen({ onSelectCard, onBack }: SearchScreenProps) {
             className="flex-1 px-4 py-2.5 rounded-xl bg-[var(--app-bg-secondary)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]"
             autoFocus
           />
+          <VoiceInput onResult={setQuery} />
           <button
             onClick={() => {
               hapticFeedback('light');

@@ -5,6 +5,7 @@ import '../../constants/app_constants.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../providers/firestore_auth_provider.dart';
+import '../../services/geocoding_service.dart';
 
 class SpecialistRegistrationScreen extends ConsumerStatefulWidget {
   const SpecialistRegistrationScreen({super.key});
@@ -19,10 +20,13 @@ class _SpecialistRegistrationScreenState extends ConsumerState<SpecialistRegistr
   final _emailController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
+  final _addressController = TextEditingController();
   
   bool _isLoading = false;
+  bool _isGeocoding = false; // Индикатор геокодирования
   String _selectedCategory = '';
   String _selectedUserType = 'client'; // client или specialist
+  Map<String, double>? _location; // Координаты адреса {lat, lng}
 
   final List<String> _categories = [
     'Барбер',
@@ -37,6 +41,7 @@ class _SpecialistRegistrationScreenState extends ConsumerState<SpecialistRegistr
     _emailController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -66,6 +71,9 @@ class _SpecialistRegistrationScreenState extends ConsumerState<SpecialistRegistr
         description: _selectedUserType == 'specialist' ? _descriptionController.text : null,
         pricePerHour: _selectedUserType == 'specialist' && _priceController.text.isNotEmpty 
             ? double.tryParse(_priceController.text) : null,
+        address: _selectedUserType == 'specialist' && _addressController.text.isNotEmpty
+            ? _addressController.text : null,
+        location: _selectedUserType == 'specialist' ? _location : null,
       );
       
       // Проверяем результат
@@ -319,6 +327,116 @@ class _SpecialistRegistrationScreenState extends ConsumerState<SpecialistRegistr
                       }
                       return null;
                     },
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Адрес
+                  CustomTextField(
+                    controller: _addressController,
+                    labelText: 'Адрес',
+                    hintText: 'Введите ваш адрес (например: ул. Амира Темура, 15, Ташкент)',
+                    prefixIcon: const Icon(Icons.location_on),
+                    validator: (value) {
+                      if (_selectedUserType == 'specialist' && (value == null || value.isEmpty)) {
+                        return 'Введите адрес';
+                      }
+                      return null;
+                    },
+                    onChanged: (value) {
+                      // При изменении адреса можно добавить геокодирование
+                      // Пока просто сохраняем адрес
+                    },
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Кнопка для получения координат по адресу через Google Geocoding API
+                  OutlinedButton.icon(
+                    onPressed: _addressController.text.isEmpty || _isGeocoding
+                        ? null
+                        : () async {
+                            if (_addressController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Сначала введите адрес'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              return;
+                            }
+                            
+                            setState(() {
+                              _isGeocoding = true;
+                            });
+                            
+                            try {
+                              // Геокодируем адрес
+                              final coordinates = await GeocodingService.geocodeAddress(
+                                _addressController.text,
+                              );
+                              
+                              if (coordinates != null) {
+                                setState(() {
+                                  _location = {
+                                    'lat': coordinates['lat'] as double,
+                                    'lng': coordinates['lng'] as double,
+                                  };
+                                });
+                                
+                                // Обновляем адрес на форматированный из Google
+                                if (coordinates['formatted_address'] != null) {
+                                  _addressController.text = coordinates['formatted_address'] as String;
+                                }
+                                
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '✅ Координаты получены: ${coordinates['lat']}, ${coordinates['lng']}',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                      duration: const Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              } else {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('❌ Не удалось получить координаты. Проверьте адрес и попробуйте снова.'),
+                                      backgroundColor: Colors.red,
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('❌ Ошибка: $e'),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 3),
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isGeocoding = false;
+                                });
+                              }
+                            }
+                          },
+                    icon: _isGeocoding
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location),
+                    label: Text(_isGeocoding ? 'Получение координат...' : 'Получить координаты'),
                   ),
                 ],
                 

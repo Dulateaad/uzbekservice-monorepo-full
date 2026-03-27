@@ -377,6 +377,102 @@ class FirestoreService {
             .toList());
   }
 
+  // ========== ИНСТРУМЕНТЫ / ТОВАРЫ СПЕЦИАЛИСТОВ ==========
+
+  /// Получить список инструментов / товаров специалиста
+  static Future<List<FirestoreToolItem>> getSpecialistTools(
+    String ownerId, {
+    String? type, // rent | sale
+  }) async {
+    try {
+      Query<Map<String, dynamic>> query = _firestore
+          .collection('tools')
+          .where('ownerId', isEqualTo: ownerId)
+          .orderBy('createdAt', descending: true);
+
+      if (type != null) {
+        query = query.where('type', isEqualTo: type);
+      }
+
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return FirestoreToolItem.fromMap(data);
+      }).toList();
+    } catch (e) {
+      print('❌ Ошибка получения инструментов специалиста: $e');
+      return [];
+    }
+  }
+
+  /// Стрим инструментов / товаров специалиста
+  static Stream<List<FirestoreToolItem>> watchSpecialistTools(
+    String ownerId, {
+    String? type,
+  }) {
+    Query<Map<String, dynamic>> query = _firestore
+        .collection('tools')
+        .where('ownerId', isEqualTo: ownerId)
+        .orderBy('createdAt', descending: true);
+
+    if (type != null) {
+      query = query.where('type', isEqualTo: type);
+    }
+
+    return query.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return FirestoreToolItem.fromMap(data);
+      }).toList();
+    });
+  }
+
+  /// Создать или обновить инструмент / товар
+  static Future<FirestoreToolItem> saveToolItem(FirestoreToolItem item) async {
+    try {
+      final toolsRef = _firestore.collection('tools');
+      final docRef = item.id.isEmpty ? toolsRef.doc() : toolsRef.doc(item.id);
+      final now = DateTime.now();
+      final toolToSave = FirestoreToolItem(
+        id: docRef.id,
+        ownerId: item.ownerId,
+        type: item.type,
+        title: item.title,
+        description: item.description,
+        price: item.price,
+        priceUnit: item.priceUnit,
+        deposit: item.deposit,
+        isAvailable: item.isAvailable,
+        category: item.category,
+        imageUrls: item.imageUrls,
+        createdAt: item.createdAt == DateTime.fromMillisecondsSinceEpoch(0)
+            ? now
+            : item.createdAt,
+        updatedAt: now,
+      );
+
+      await docRef.set(toolToSave.toMap(), SetOptions(merge: true));
+      print('✅ Инструмент/товар сохранен: ${toolToSave.id}');
+      return toolToSave;
+    } catch (e) {
+      print('❌ Ошибка сохранения инструмента/товара: $e');
+      rethrow;
+    }
+  }
+
+  /// Удалить инструмент / товар
+  static Future<void> deleteToolItem(String id) async {
+    try {
+      await _firestore.collection('tools').doc(id).delete();
+      print('✅ Инструмент/товар удален: $id');
+    } catch (e) {
+      print('❌ Ошибка удаления инструмента/товара: $e');
+      rethrow;
+    }
+  }
+
   // Обновление статуса заказа
   static Future<void> updateOrderStatus(String orderId, String status) async {
     try {

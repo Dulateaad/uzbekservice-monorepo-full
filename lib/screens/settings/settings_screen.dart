@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants/app_constants.dart';
 import '../../widgets/design_system_button.dart';
+import '../../providers/locale_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -527,6 +529,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Widget _buildLanguageSetting() {
+    final l10n = AppLocalizations.of(context)!;
+    final currentLocale = ref.watch(localeProvider);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppConstants.spacingMD,
@@ -540,9 +544,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Язык',
-                  style: TextStyle(
+                Text(
+                  l10n.language,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppConstants.textPrimary,
@@ -550,7 +554,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _getLanguageName(_selectedLanguage),
+                  currentLocale.languageCode == 'ru' 
+                    ? l10n.russian 
+                    : currentLocale.languageCode == 'uz' 
+                      ? l10n.uzbek 
+                      : l10n.english,
                   style: TextStyle(
                     fontSize: 14,
                     color: AppConstants.textSecondary,
@@ -559,18 +567,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ],
             ),
           ),
-          DropdownButton<String>(
-            value: _selectedLanguage,
-            underline: const SizedBox(),
-            items: const [
-              DropdownMenuItem(value: 'uz', child: Text('O\'zbekcha')),
-              DropdownMenuItem(value: 'ru', child: Text('Русский')),
-              DropdownMenuItem(value: 'en', child: Text('English')),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedLanguage = value!;
-              });
+          Consumer(
+            builder: (context, ref, _) {
+              final locale = ref.watch(localeProvider);
+              return DropdownButton<String>(
+                value: locale.languageCode,
+                underline: const SizedBox(),
+                items: [
+                  DropdownMenuItem(value: 'uz', child: Text(l10n.uzbek)),
+                  DropdownMenuItem(value: 'ru', child: Text(l10n.russian)),
+                ],
+                onChanged: (value) async {
+                  if (value != null) {
+                    final localeNotifier = ref.read(localeProvider.notifier);
+                    await localeNotifier.setLocale(Locale(value));
+                    setState(() {
+                      _selectedLanguage = value;
+                    });
+                    await _saveSettings();
+                  }
+                },
+              );
             },
           ),
         ],

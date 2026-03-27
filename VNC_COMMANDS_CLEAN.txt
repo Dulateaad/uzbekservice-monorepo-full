@@ -1,0 +1,275 @@
+БЛОК 1: Создание SQL файла
+===========================================
+
+cat > /root/setup/vps_create_tables.sql <<'SQLEOF'
+-- SQL скрипт для создания таблиц в PostgreSQL
+
+CREATE TABLE IF NOT EXISTS users_sensitive (
+    id VARCHAR(50) PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL UNIQUE,
+    address TEXT,
+    location JSONB,
+    is_uzbek_citizen BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users_sensitive(phone_number);
+CREATE INDEX IF NOT EXISTS idx_users_location ON users_sensitive USING GIN(location);
+CREATE INDEX IF NOT EXISTS idx_users_created ON users_sensitive(created_at);
+
+CREATE TABLE IF NOT EXISTS orders_sensitive (
+    id VARCHAR(50) PRIMARY KEY,
+    user_id VARCHAR(50) REFERENCES users_sensitive(id),
+    address TEXT,
+    location JSONB,
+    phone_number VARCHAR(20),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_user ON orders_sensitive(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created ON orders_sensitive(created_at);
+
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_sensitive_updated_at 
+    BEFORE UPDATE ON users_sensitive 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_orders_sensitive_updated_at 
+    BEFORE UPDATE ON orders_sensitive 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+SQLEOF
+echo "SQL файл создан"
+
+
+БЛОК 2: Создание package.json
+===========================================
+
+cat > /var/www/api/package.json <<'PKGEOF'
+{
+  "name": "uzbekservice-vps-api",
+  "version": "1.0.0",
+  "description": "API сервер для хранения чувствительных данных на VPS в Узбекистане",
+  "main": "vps_api_server.js",
+  "scripts": {
+    "start": "node vps_api_server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "author": "ODO.UZ",
+  "license": "ISC"
+}
+PKGEOF
+echo "package.json создан"
+
+
+БЛОК 3: Создание API сервера
+===========================================
+
+cat > /var/www/api/vps_api_server.js <<'JSEOF'
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+const pool = new Pool({
+  user: process.env.DB_USER || 'uzbekservice_user',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'uzbekservice_db',
+  password: process.env.DB_PASSWORD || 'Uzbekservice2026Secure',
+  port: process.env.DB_PORT || 5432,
+});
+
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('❌ Ошибка подключения к БД:', err);
+  } else {
+    console.log('✅ Подключено к PostgreSQL:', res.rows[0].now);
+  }
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.post('/api/sensitive-user-data', async (req, res) => {
+  const { userId, phoneNumber, address, latitude, longitude } = req.body;
+
+  if (!userId || !phoneNumber) {
+    return res.status(400).json({ error: 'userId and phoneNumber are required' });
+  }
+
+  try {
+    const location = (latitude && longitude) ? { lat: latitude, lng: longitude, address: address } : null;
+    
+    const result = await pool.query(
+      `INSERT INTO users_sensitive (id, phone_number, address, location)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE SET
+         phone_number = $2,
+         address = $3,
+         location = $4,
+         updated_at = NOW()
+       RETURNING *`,
+      [userId, phoneNumber, address || null, location ? JSON.stringify(location) : null]
+    );
+    
+    res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error saving sensitive user data:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/sensitive-user-data/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const result = await pool.query(
+      'SELECT id, phone_number, address, location FROM users_sensitive WHERE id = $1',
+      [userId]
+    );
+    
+    if (result.rows.length > 0) {
+      res.status(200).json(result.rows[0]);
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  } catch (err) {
+    console.error('Error fetching sensitive user data:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 API сервер запущен на порту ${PORT}`);
+  console.log(`📡 Доступен по адресу: http://localhost:${PORT}`);
+});
+JSEOF
+echo "API сервер создан"
+
+
+БЛОК 4: Создание таблиц в БД
+===========================================
+
+su - postgres -c "psql -d uzbekservice_db <<'SQLEOF'
+CREATE TABLE IF NOT EXISTS users_sensitive (
+    id VARCHAR(50) PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL UNIQUE,
+    address TEXT,
+    location JSONB,
+    is_uzbek_citizen BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users_sensitive(phone_number);
+CREATE INDEX IF NOT EXISTS idx_users_location ON users_sensitive USING GIN(location);
+CREATE INDEX IF NOT EXISTS idx_users_created ON users_sensitive(created_at);
+CREATE TABLE IF NOT EXISTS orders_sensitive (
+    id VARCHAR(50) PRIMARY KEY,
+    user_id VARCHAR(50) REFERENCES users_sensitive(id),
+    address TEXT,
+    location JSONB,
+    phone_number VARCHAR(20),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_orders_user ON orders_sensitive(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created ON orders_sensitive(created_at);
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS \$\$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+\$\$ language 'plpgsql';
+CREATE TRIGGER update_users_sensitive_updated_at 
+    BEFORE UPDATE ON users_sensitive 
+    FOR EACH ROW 
+    EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_orders_sensitive_updated_at 
+    BEFORE UPDATE ON orders_sensitive 
+    FOR EACH ROW 
+    EXECUTE PROCEDURE update_updated_at_column();
+SQLEOF
+"
+
+
+БЛОК 5: Установка зависимостей
+===========================================
+
+cd /var/www/api && npm install && echo "Зависимости установлены"
+
+
+БЛОК 6: Создание .env файла
+===========================================
+
+cat > /var/www/api/.env <<'ENVEOF'
+PORT=3000
+DB_USER=uzbekservice_user
+DB_HOST=localhost
+DB_NAME=uzbekservice_db
+DB_PASSWORD=Uzbekservice2026Secure
+DB_PORT=5432
+NODE_ENV=production
+ENVEOF
+echo "Файл .env создан"
+
+
+БЛОК 7: Создание systemd service
+===========================================
+
+cat > /etc/systemd/system/uzbekservice-api.service <<'SERVICEEOF'
+[Unit]
+Description=Uzbekservice API Server
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/api
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /var/www/api/vps_api_server.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+SERVICEEOF
+systemctl daemon-reload
+systemctl start uzbekservice-api
+systemctl enable uzbekservice-api
+systemctl status uzbekservice-api --no-pager
+
+
+БЛОК 8: Настройка firewall
+===========================================
+
+firewall-cmd --permanent --add-port=3000/tcp && firewall-cmd --reload && echo "Firewall настроен"
+
+
+БЛОК 9: Проверка работы
+===========================================
+
+sleep 3 && curl http://localhost:3000/health && echo "" && echo "API работает!"
+

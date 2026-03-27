@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../config/firebase_config.dart';
 
 class FirebaseAuthService {
@@ -82,49 +83,91 @@ class FirebaseAuthService {
       String? verificationId;
       String? errorMessage;
 
-      await _auth.verifyPhoneNumber(
-        phoneNumber: formattedPhone,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          // Автоматическая верификация (Android)
-          try {
-            await _auth.signInWithCredential(credential);
-            print('✅ Автоматическая верификация успешна');
-          } catch (e) {
-            print('❌ Ошибка автоматической верификации: $e');
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          print('❌ Ошибка верификации: ${e.message}');
-          errorMessage = e.message ?? e.toString();
-          if (!completer.isCompleted) {
-            completer.complete({
-              'success': false,
-              'error': errorMessage,
+      // reCAPTCHA удалена по запросу пользователя
+      // Для веб используем прямой вызов verifyPhoneNumber без reCAPTCHA
+      if (kIsWeb) {
+        await _auth.verifyPhoneNumber(
+          phoneNumber: formattedPhone,
+          verificationCompleted: (PhoneAuthCredential credential) {
+            // На веб не используется, но параметр обязательный
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            print('❌ Ошибка верификации: ${e.message}');
+            errorMessage = e.message ?? e.toString();
+            
+            if (!completer.isCompleted) {
+              completer.complete({
+                'success': false,
+                'error': errorMessage,
+              });
+            }
+          },
+          codeSent: (String vid, int? resendToken) {
+            verificationId = vid;
+            _verificationId = vid;
+            _verificationIds[formattedPhone] = vid;
+            print('✅ SMS код отправлен на $formattedPhone');
+            print('🔑 Verification ID: $vid');
+            
+            if (!completer.isCompleted) {
+              completer.complete({
+                'success': true,
+                'message': 'SMS код отправлен',
+                'verificationId': vid,
+              });
+            }
+          },
+          codeAutoRetrievalTimeout: (String vid) {
+            // На веб не используется, но параметр обязательный
+            if (!kIsWeb) {
+              print('⏱️ Автоматическое получение кода истекло: $vid');
+            }
+          },
+          timeout: const Duration(seconds: 60),
+        );
+      } else {
+        // Для мобильных платформ (Android/iOS)
+        await _auth.verifyPhoneNumber(
+          phoneNumber: formattedPhone,
+          verificationCompleted: (PhoneAuthCredential credential) {
+            _auth.signInWithCredential(credential).then((_) {
+              print('✅ Автоматическая верификация успешна');
+            }).catchError((e) {
+              print('❌ Ошибка автоматической верификации: $e');
             });
-          }
-        },
-        codeSent: (String vid, int? resendToken) {
-          verificationId = vid;
-          _verificationId = vid;
-          _verificationIds[formattedPhone] = vid;
-          print('✅ SMS код отправлен на $formattedPhone');
-          print('🔑 Verification ID: $vid');
-          if (!completer.isCompleted) {
-            completer.complete({
-              'success': true,
-              'message': 'SMS код отправлен',
-              'verificationId': vid,
-            });
-          }
-        },
-        codeAutoRetrievalTimeout: (String vid) {
-          verificationId = vid;
-          _verificationId = vid;
-          _verificationIds[formattedPhone] = vid;
-          print('⏱️ Timeout, но verificationId получен: $vid');
-        },
-        timeout: const Duration(seconds: 60),
-      );
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            print('❌ Ошибка верификации: ${e.message}');
+            errorMessage = e.message ?? e.toString();
+            if (!completer.isCompleted) {
+              completer.complete({
+                'success': false,
+                'error': errorMessage,
+              });
+            }
+          },
+          codeSent: (String vid, int? resendToken) {
+            verificationId = vid;
+            _verificationId = vid;
+            _verificationIds[formattedPhone] = vid;
+            print('✅ SMS код отправлен на $formattedPhone');
+            if (!completer.isCompleted) {
+              completer.complete({
+                'success': true,
+                'message': 'SMS код отправлен',
+                'verificationId': vid,
+              });
+            }
+          },
+          codeAutoRetrievalTimeout: (String vid) {
+            verificationId = vid;
+            _verificationId = vid;
+            _verificationIds[formattedPhone] = vid;
+            print('⏱️ Timeout, но verificationId получен: $vid');
+          },
+          timeout: const Duration(seconds: 60),
+        );
+      }
 
       // Ждем результат (либо codeSent, либо verificationFailed)
       return await completer.future.timeout(

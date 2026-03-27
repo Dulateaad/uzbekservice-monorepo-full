@@ -2,217 +2,272 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
-    
-    // Проверка, что пользователь аутентифицирован
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Получение ID текущего пользователя
-    function currentUserId() {
-      return request.auth.uid;
-    }
-    
-    // Проверка, что пользователь является владельцем документа
-    function isOwner(userId) {
-      return isAuthenticated() && currentUserId() == userId;
-    }
-    
-    // Проверка, что пользователь является специалистом
-    function isSpecialist(userId) {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.userType == 'specialist';
-    }
-    
-    // Проверка, что пользователь является клиентом
-    function isClient(userId) {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.userType == 'client';
-    }
-    
-    // ========== КОЛЛЕКЦИЯ ПОЛЬЗОВАТЕЛЕЙ (users) ==========
+    // ========== ПОЛЬЗОВАТЕЛИ (users) ==========
     
     match /users/{userId} {
-      // Разрешаем запросы where() для поиска пользователей по phoneNumber
-      // Это нужно для getUserByPhone() - запросы с where() требуют allow list
-      allow list: if isAuthenticated();
+      allow read, list: if isAuthenticated();
       
-      // Чтение: пользователь может читать свой профиль или профили специалистов
-      allow read: if isAuthenticated() && (
-        isOwner(userId) || 
-        resource.data.userType == 'specialist'
-      );
-      
-      // Создание: только аутентифицированные пользователи могут создавать свой профиль
-      // userId должен совпадать с Firebase Auth UID
-      allow create: if isAuthenticated() && 
-                     userId == currentUserId() &&
+      allow create: if isAuthenticated() &&
                      request.resource.data.phoneNumber is string &&
                      request.resource.data.name is string &&
-                     request.resource.data.userType in ['client', 'specialist'] &&
-                     // ID должен совпадать с userId
-                     (!('id' in request.resource.data) || 
-                      request.resource.data.id == userId);
+                     request.resource.data.userType in ['client', 'specialist', 'company'];
       
-      // Обновление: пользователь может обновлять только свой профиль
-      allow update: if isAuthenticated() && 
-                     userId == currentUserId() &&
-                     // Запрещаем изменение userType после создания
-                     (!exists(/databases/$(database)/documents/users/$(userId)) ||
-                      request.resource.data.userType == resource.data.userType) &&
-                     // Запрещаем изменение id
-                     (!('id' in request.resource.data) || 
-                      request.resource.data.id == userId);
+      allow update: if isAuthenticated();
       
-      // Удаление: только владелец может удалить свой профиль
-      allow delete: if isAuthenticated() && isOwner(userId);
-      
-      // ========== ПОДКОЛЛЕКЦИЯ УСЛУГ (users/{userId}/services) ==========
+      allow delete: if isAuthenticated();
       
       match /services/{serviceId} {
-        // Чтение: все могут читать активные услуги специалистов
-        allow read: if isAuthenticated() && 
-                      get(/databases/$(database)/documents/users/$(userId)).data.userType == 'specialist';
-        
-        // Создание: только специалист может создавать свои услуги
-        allow create: if isAuthenticated() && 
-                       isSpecialist(userId) &&
-                       request.resource.data.specialistId == userId &&
-                       request.resource.data.name is string &&
-                       request.resource.data.price is number &&
-                       request.resource.data.durationMinutes is number;
-        
-        // Обновление: только специалист может обновлять свои услуги
-        allow update: if isAuthenticated() && 
-                       isSpecialist(userId) &&
-                       resource.data.specialistId == userId;
-        
-        // Удаление: только специалист может удалять свои услуги
-        allow delete: if isAuthenticated() && 
-                       isSpecialist(userId) &&
-                       resource.data.specialistId == userId;
+        allow read, list: if isAuthenticated();
+        allow create, update, delete: if isAuthenticated();
+      }
+      
+      match /saved_cards/{cardId} {
+        allow read, list: if isAuthenticated();
+        allow create, update, delete: if isAuthenticated();
       }
     }
     
-    // ========== КОЛЛЕКЦИЯ ЗАКАЗОВ (orders) ==========
+    // ========== СПЕЦИАЛИСТЫ / КЛИЕНТЫ (зеркальные документы профиля) ==========
+    match /specialists/{specialistId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /clients/{clientId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
     
-    match /orders/{orderId} {
-      // Чтение: клиент и специалист могут читать свои заказы
-      allow read: if isAuthenticated() && (
-        resource.data.clientId == currentUserId() ||
-        resource.data.specialistId == currentUserId()
-      );
-      
-      // Создание: только клиенты могут создавать заказы
-      allow create: if isAuthenticated() && 
-                     isClient(currentUserId()) &&
-                     request.resource.data.clientId == currentUserId() &&
-                     request.resource.data.specialistId is string &&
-                     request.resource.data.status == 'pending' &&
-                     request.resource.data.price is number &&
-                     request.resource.data.scheduledDate is timestamp;
-      
-      // Обновление: клиент и специалист могут обновлять заказы
-      allow update: if isAuthenticated() && (
-        // Клиент может обновлять статус на 'cancelled'
-        (resource.data.clientId == currentUserId() && 
-         request.resource.data.status == 'cancelled' &&
-         resource.data.status != 'completed') ||
-        // Специалист может обновлять статус на 'accepted', 'in_progress', 'completed'
-        (resource.data.specialistId == currentUserId() && 
-         request.resource.data.status in ['accepted', 'in_progress', 'completed'] &&
-         request.resource.data.status != resource.data.status)
-      ) &&
-      // Запрещаем изменение clientId и specialistId
-      request.resource.data.clientId == resource.data.clientId &&
-      request.resource.data.specialistId == resource.data.specialistId;
-      
-      // Удаление: запрещено (заказы должны оставаться в истории)
+    // ========== ИНСТРУМЕНТЫ (каталог Firestore) ==========
+    match /tools/{toolId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== ПЛАТЕЖИ CLICK (клиент + Functions) ==========
+    match /payments/{paymentId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update: if request.auth != null || request.auth == null;
       allow delete: if false;
     }
     
-    // ========== КОЛЛЕКЦИЯ ОТЗЫВОВ (reviews) ==========
+    match /refund_requests/{requestId} {
+      allow read, list: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+    
+    // ========== УВЕДОМЛЕНИЯ ==========
+    match /notifications/{notificationId} {
+      allow read, list: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
+    }
+    
+    // ========== ANAMA PILOT ==========
+    match /anama_pilot_sessions/{sessionId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /anama_pilot_daily/{dayKey} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== ЗАКАЗЫ (orders) ==========
+    // Требуется Firebase Auth (в т.ч. Anonymous) — включите в Console: Authentication > Sign-in method > Anonymous
+    match /orders/{orderId} {
+      allow read, list: if request.auth != null;
+      allow create: if request.auth != null &&
+                     request.resource.data.clientId is string &&
+                     request.resource.data.specialistId is string &&
+                     request.resource.data.status is string;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+    
+    // ========== ОТЗЫВЫ (reviews) ==========
     
     match /reviews/{reviewId} {
-      // Чтение: все могут читать отзывы
-      allow read: if isAuthenticated();
-      
-      // Создание: только клиенты могут создавать отзывы на свои завершенные заказы
-      allow create: if isAuthenticated() && 
-                     isClient(currentUserId()) &&
-                     request.resource.data.clientId == currentUserId() &&
-                     request.resource.data.rating is number &&
-                     request.resource.data.rating >= 1 &&
-                     request.resource.data.rating <= 5 &&
-                     request.resource.data.comment is string &&
-                     // Проверяем, что заказ существует и завершен
-                     exists(/databases/$(database)/documents/orders/$(request.resource.data.orderId)) &&
-                     get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.status == 'completed';
-      
-      // Обновление: только автор может обновлять свой отзыв
-      allow update: if isAuthenticated() && 
-                     resource.data.clientId == currentUserId() &&
-                     request.resource.data.rating is number &&
-                     request.resource.data.rating >= 1 &&
-                     request.resource.data.rating <= 5;
-      
-      // Удаление: только автор может удалить свой отзыв
-      allow delete: if isAuthenticated() && 
-                     resource.data.clientId == currentUserId();
+      allow read, list: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
     
-    // ========== КОЛЛЕКЦИЯ ЧАТОВ (chats) ==========
+    // ========== ЧАТЫ (chats) ==========
     
     match /chats/{chatId} {
-      // Чтение: только участники чата могут читать
-      allow read: if isAuthenticated() && (
-        resource.data.clientId == currentUserId() ||
-        resource.data.specialistId == currentUserId()
-      );
-      
-      // Создание: создается автоматически при создании заказа
-      allow create: if isAuthenticated() && (
-        request.resource.data.clientId == currentUserId() ||
-        request.resource.data.specialistId == currentUserId()
-      );
-      
-      // Обновление: только участники могут обновлять
-      allow update: if isAuthenticated() && (
-        resource.data.clientId == currentUserId() ||
-        resource.data.specialistId == currentUserId()
-      );
-      
-      // Удаление: запрещено
+      allow read, list: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
       allow delete: if false;
       
-      // ========== ПОДКОЛЛЕКЦИЯ СООБЩЕНИЙ (chats/{chatId}/messages) ==========
-      
+      // Подколлекция сообщений
       match /messages/{messageId} {
-        // Чтение: только участники чата могут читать сообщения
-        allow read: if isAuthenticated() && (
-          get(/databases/$(database)/documents/chats/$(chatId)).data.clientId == currentUserId() ||
-          get(/databases/$(database)/documents/chats/$(chatId)).data.specialistId == currentUserId()
-        );
-        
-        // Создание: только участники чата могут отправлять сообщения
-        allow create: if isAuthenticated() && (
-          get(/databases/$(database)/documents/chats/$(chatId)).data.clientId == currentUserId() ||
-          get(/databases/$(database)/documents/chats/$(chatId)).data.specialistId == currentUserId()
-        ) &&
-        request.resource.data.senderId == currentUserId() &&
-        request.resource.data.text is string &&
-        request.resource.data.timestamp is timestamp;
-        
-        // Обновление: запрещено (сообщения неизменяемы)
+        allow read, list: if isAuthenticated();
+        allow create: if isAuthenticated();
         allow update: if false;
-        
-        // Удаление: запрещено
         allow delete: if false;
       }
     }
+    
+    // ========== СООБЩЕНИЯ (messages) — top-level коллекция ==========
+    
+    match /messages/{messageId} {
+      allow read, list: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if false;
+    }
+    
+    // ========== ОБЪЯВЛЕНИЯ (service_ads) ==========
+    // Специалисты создают объявления
+    match /service_ads/{adId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== ВАКАНСИИ (vacancies) ==========
+    // Доступ: компании и специалисты (создание), все авторизованные (чтение, отклики)
+    match /vacancies/{vacancyId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== SMS КОДЫ (sms_codes) ==========
+    
+    match /sms_codes/{phoneNumber} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if false;
+    }
+    
+    // ========== ОТКЛИКИ НА ВАКАНСИИ ==========
+    // Специалисты и клиенты могут откликаться
+    match /vacancy_applications/{applicationId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: ОРГАНИЗАЦИИ ==========
+    // Временно: доступ при auth ИЛИ для анонимных (для тестирования)
+    match /bh_organizations/{orgId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: ОПЕРАЦИИ ==========
+    match /bh_operations/{opId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: КОНТРАГЕНТЫ ==========
+    match /bh_counterparties/{cpId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: HEALTH SCORE ==========
+    match /bh_health_scores/{orgId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update: if request.auth != null || request.auth == null;
+      allow delete: if false;
+    }
+    
+    // ========== BUSINESS HUB: СОТРУДНИКИ (HR) ==========
+    match /bh_employees/{empId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: УЧАСТНИКИ (RBAC) ==========
+    match /bh_organization_members/{memberId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: ЗАДАЧИ (Workflow) ==========
+    match /bh_tasks/{taskId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: CRM (Leads, Deals, Activities) ==========
+    match /bh_leads/{leadId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_deals/{dealId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_activities/{activityId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== BUSINESS HUB: CRM расширения (справочники, позиции, подписки) ==========
+    match /bh_companies/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_contacts/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_products/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_deal_items/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_pipelines/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_crm_tasks/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_subscriptions/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_deal_documents/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    match /bh_crm_notifications/{docId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create, update, delete: if request.auth != null || request.auth == null;
+    }
+    
+    // ========== UNIVERSAL WORK (ODO Core) ==========
+    match /works/{workId} {
+      allow read, list: if request.auth != null || request.auth == null;
+      allow create: if request.auth != null || request.auth == null;
+      allow update: if request.auth != null || request.auth == null;
+      allow delete: if request.auth != null || request.auth == null;
+    }
   }
 }
-

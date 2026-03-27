@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аида 💌</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💌</text></svg>">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;500;700&family=Bad+Script&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Comfortaa', cursive;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .screen {
+            min-height: 100vh;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.2rem;
+            position: relative;
+            z-index: 1;
+        }
+        .screen.active { display: flex; }
+
+        .intro h1 {
+            font-family: 'Bad Script', cursive;
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            text-align: center;
+            opacity: 0;
+            animation: fadeUp 2s ease forwards;
+            line-height: 1.6;
+        }
+
+        .heart-btn {
+            margin-top: 1.5rem;
+            padding: 1rem 3rem;
+            background: linear-gradient(135deg, #e91e63, #ff5252);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-family: 'Comfortaa', cursive;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .heart-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 30px rgba(233, 30, 99, 0.6);
+        }
+        .heart-btn:active { transform: scale(0.96); }
+        .heart-btn-delayed {
+            opacity: 0;
+            animation: fadeUp 2s ease 1.5s forwards;
+        }
+
+        .quiz-card {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 2rem 1.8rem;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        .quiz-card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .quiz-option {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px;
+            color: white;
+            font-family: 'Comfortaa', cursive;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quiz-option:hover {
+            background: rgba(233, 30, 99, 0.3);
+            border-color: #e91e63;
+            transform: translateY(-2px);
+        }
+        .quiz-option.correct {
+            background: rgba(76, 175, 80, 0.4) !important;
+            border-color: #4caf50 !important;
+            pointer-events: none;
+        }
+        .quiz-option.wrong {
+            background: rgba(244, 67, 54, 0.3) !important;
+            border-color: #f44336 !important;
+        }
+        .quiz-option.disabled {
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        .response-bubble {
+            display: none;
+            background: linear-gradient(135deg, #e91e63, #ff5252);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .photo-reveal {
+            display: none;
+            margin-top: 1.5rem;
+            animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            text-align: center;
+        }
+        .photo-reveal img {
+            max-width: 100%;
+            border-radius: 16px;
+            border: 3px solid rgba(233, 30, 99, 0.4);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+        .photo-reveal p {
+            margin-top: 1rem;
+            font-family: 'Bad Script', cursive;
+            font-size: 1.3rem;
+            color: #ff80ab;
+        }
+
+        .date-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin: 1rem 0;
+        }
+        .day-label {
+            font-size: 0.7rem;
+            opacity: 0.5;
+            text-align: center;
+            padding: 0.3rem 0;
+        }
+        .date-cell {
+            padding: 0.55rem 0.2rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            color: white;
+            font-family: 'Comfortaa', cursive;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .date-cell:hover {
+            background: rgba(233, 30, 99, 0.3);
+            border-color: #e91e63;
+            transform: scale(1.05);
+        }
+
+        .rate-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #ff5252, #e91e63, #ff1744);
+            outline: none;
+            margin: 1rem 0;
+        }
+        .rate-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(233, 30, 99, 0.5);
+        }
+
+        .finale h1 {
+            font-family: 'Bad Script', cursive;
+            font-size: clamp(1.8rem, 5vw, 3rem);
+            text-align: center;
+            line-height: 1.6;
+            animation: fadeUp 1s ease forwards;
+        }
+        .finale .anniversary-photo {
+            margin: 2rem auto;
+            max-width: 400px;
+            width: 100%;
+            animation: popIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s both;
+        }
+        .finale .anniversary-photo img {
+            width: 100%;
+            border-radius: 20px;
+            border: 3px solid rgba(233, 30, 99, 0.4);
+            box-shadow: 0 15px 50px rgba(233, 30, 99, 0.3);
+        }
+        .finale .details {
+            font-size: 1.05rem;
+            margin-top: 1.5rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            text-align: center;
+            line-height: 2;
+            max-width: 500px;
+            width: 100%;
+            animation: fadeUp 1s ease 0.6s both;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #e91e63, #ff5252, #ff80ab);
+            transition: width 0.5s ease;
+            z-index: 100;
+            border-radius: 0 2px 2px 0;
+        }
+
+        .confetti-piece {
+            position: fixed;
+            top: -20px;
+            z-index: 99;
+            pointer-events: none;
+            animation: confettiFall linear forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes confettiFall {
+            0% { top: -10px; opacity: 1; }
+            100% { top: 110vh; opacity: 0.6; transform: rotate(720deg); }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px); }
+            40% { transform: translateX(6px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .screen-enter {
+            animation: fadeUp 0.6s ease both;
+        }
+
+        @media (max-width: 400px) {
+            .quiz-card { padding: 1.5rem 1.2rem; }
+            .quiz-card h2 { font-size: 1.05rem; }
+            .quiz-option { font-size: 0.9rem; padding: 0.8rem; }
+            .date-cell { font-size: 0.75rem; padding: 0.45rem 0.15rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar" style="width: 0%"></div>
+
+<!-- 1. Заставка -->
+<div class="screen intro active" id="screen1">
+    <h1>Аида, у меня к тебе<br>один важный вопрос... 💭</h1>
+    <button class="heart-btn heart-btn-delayed" onclick="goTo('screen2', 1)">
+        💌 Открыть
+    </button>
+</div>
+
+<!-- 2. Помнишь когда начали общаться? -->
+<div class="screen" id="screen2">
+    <div class="quiz-card">
+        <h2>Ты помнишь, когда мы начали общаться? 🤔</h2>
+        <button class="quiz-option" onclick="showPhoto(this)">Да! 😊</button>
+        <button class="quiz-option" onclick="showPhoto(this)">Конечно помню! 💕</button>
+        <button class="quiz-option" onclick="showPhoto(this)">3 Декабря ❄️</button>
+        <div class="photo-reveal" id="photoReveal">
+            <p>Вот с этого всё началось... 💫</p>
+            <img src="https://firebasestorage.googleapis.com/v0/b/studio-4793293715-b7857.firebasestorage.app/o/ScreenShot%20Tool%20-20260228152326.png?alt=media&token=867e35f2-9eb4-4404-a796-c665222503e6" alt="Наше начало">
+            <br>
+            <button class="heart-btn" style="margin-top:1.5rem" onclick="goTo('screen3', 2)">Дальше →</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Когда начали встречаться? Календарь февраля -->
+<div class="screen" id="screen3">
+    <div class="quiz-card">
+        <h2>А когда мы начали встречаться? 💑<br><span style="font-size:0.85rem;opacity:0.6">Выбери число февраля</span></h2>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:0.3rem;">
+            <span class="day-label">Пн</span><span class="day-label">Вт</span><span class="day-label">Ср</span>
+            <span class="day-label">Чт</span><span class="day-label">Пт</span><span class="day-label">Сб</span>
+            <span class="day-label">Вс</span>
+        </div>
+        <div class="date-grid" id="dateGrid"></div>
+        <div class="response-bubble" id="dateCorrect" style="background:linear-gradient(135deg,#4caf50,#66bb6a)">
+            ✅ 28 февраля — наш день! 🥰💕
+            <br><br>
+            <button class="heart-btn" onclick="goTo('screen4', 3)">Дальше →</button>
+        </div>
+        <div class="response-bubble" id="dateWrong">
+            Не-а, попробуй ещё раз! 😜
+        </div>
+    </div>
+</div>
+
+<!-- 4. Что мы пили? -->
+<div class="screen" id="screen4">
+    <div class="quiz-card">
+        <h2>Что мы пили, когда я провожал тебя первый раз? ☕</h2>
+        <button class="quiz-option" onclick="checkDrink(this, false)">🍹 Мохито</button>
+        <button class="quiz-option" onclick="checkDrink(this, true)">🍫 Горячий шоколад</button>
+        <div class="response-bubble" id="drinkCorrect" style="background:linear-gradient(135deg,#4caf50,#66bb6a)">
+            ✅ Да! Горячий шоколад — наш напиток! 🍫☕💕
+            <br><br>
+            <button class="heart-btn" onclick="goTo('screen5', 4)">Дальше →</button>
+        </div>
+        <div class="response-bubble" id="drinkWrong">
+            Хмм, точно мохито? Подумай ещё раз 😏
+        </div>
+    </div>
+</div>
+
+<!-- 5. Что я подумал -->
+<div class="screen" id="screen5">
+    <div class="quiz-card">
+        <h2>Угадай, что я подумал, когда увидел тебя первый раз? 🤔</h2>
+        <button class="quiz-option" onclick="showResponse(this, 'resp5')">
+            "Ого, кто это..." 👀
+        </button>
+        <button class="quiz-option" onclick="showResponse(this, 'resp5')">
+            "Нужно обязательно познакомиться!" 🫣
+        </button>
+        <button class="quiz-option" onclick="showResponse(this, 'resp5')">
+            "Самая красивая девушка" ✨
+        </button>
+        <div class="response-bubble" id="resp5">
+            Правильный ответ — <strong>"Какая красивая!"</strong> 😍✨
+            <br>И я до сих пор так думаю каждый день!
+            <br><br>
+            <button class="heart-btn" onclick="goTo('screen6', 5)">Дальше →</button>
+        </div>
+    </div>
+</div>
+
+<!-- 6. Идеальный вечер -->
+<div class="screen" id="screen6">
+    <div class="quiz-card">
+        <h2>Наш идеальный вечер — это... 🌟</h2>
+        <button class="quiz-option" onclick="showResponse(this, 'resp6')">🏎️ Картинг</button>
+        <button class="quiz-option" onclick="showResponse(this, 'resp6')">⛸️ Каток</button>
+        <button class="quiz-option" onclick="showResponse(this, 'resp6')">🎨 Мастер-класс по арту</button>
+        <div class="response-bubble" id="resp6">
+            Отличный выбор! Я уже забронировал! 😏🔥
+            <br><br>
+            <button class="heart-btn" onclick="goTo('screen7', 6)">Дальше →</button>
+        </div>
+    </div>
+</div>
+
+<!-- 7. Оцени меня -->
+<div class="screen" id="screen7">
+    <div class="quiz-card">
+        <h2>Оцени меня как парня 😬</h2>
+        <p id="rateEmoji" style="font-size: 2.5rem; margin: 0.5rem 0;">🥇</p>
+        <p id="rateText" style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #ff80ab;">Лучший на свете</p>
+        <input type="range" class="rate-slider" min="0" max="100" value="100"
+               oninput="handleSlider(this)">
+        <p style="opacity: 0.4; font-size: 0.75rem; margin-top: 0.5rem;">
+            (попробуй сдвинуть... если получится 😏)
+        </p>
+        <br>
+        <button class="heart-btn" onclick="goTo('screen8', 7)">Дальше →</button>
+    </div>
+</div>
+
+<!-- 8. Ты свободна? -->
+<div class="screen" id="screen8">
+    <div class="quiz-card">
+        <h2>Ты свободна сегодня? 📅✨</h2>
+        <button class="quiz-option" onclick="showResponse(this, 'resp8')">Да! 💃</button>
+        <button class="quiz-option" onclick="showResponse(this, 'resp8')">Да! 🎉</button>
+        <button class="quiz-option" onclick="showResponse(this, 'resp8')">Конечно да! 💕</button>
+        <div class="response-bubble" id="resp8">
+            Я так и знал! 🥰
+            <br><br>
+            <button class="heart-btn" onclick="goToFinale()" style="animation: pulse 1.5s infinite; font-size:1.15rem;">
+                💝 Узнать план
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 9. Финал -->
+<div class="screen finale" id="screen9">
+    <h1>Аида, с годовщиной! 🎉💕<br>Нам 1 год!</h1>
+    <div class="anniversary-photo">
+        <img src="https://firebasestorage.googleapis.com/v0/b/studio-4793293715-b7857.firebasestorage.app/o/%D0%B3%D0%BE%D0%B4.jpg?alt=media&token=af7a04a7-bc92-4055-84b2-35da76e7f751" alt="Нам 1 год!">
+    </div>
+    <div class="details">
+        <p>📅 <strong>28 Февраля 2026</strong></p>
+        <p>🕖 <strong>18:00</strong></p>
+        <p>📍 <strong>Наше любимое место</strong></p>
+        <br>
+        <p style="font-family: 'Bad Script', cursive; font-size: 1.4rem; line-height: 1.8;">
+            Этот год с тобой был самым<br>
+            счастливым в моей жизни.<br>
+            Спасибо, что ты есть ❤️
+        </p>
+    </div>
+</div>
+
+<script>
+    const totalScreens = 9;
+
+    function goTo(id, step) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const screen = document.getElementById(id);
+        screen.classList.add('active');
+        screen.classList.add('screen-enter');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (step !== undefined) {
+            document.getElementById('progressBar').style.width =
+                ((step / (totalScreens - 1)) * 100) + '%';
+        }
+    }
+
+    function showPhoto(btn) {
+        const card = btn.closest('.quiz-card');
+        card.querySelectorAll('.quiz-option').forEach(o => o.classList.add('disabled'));
+        btn.classList.remove('disabled');
+        btn.style.background = 'rgba(233, 30, 99, 0.4)';
+        btn.style.borderColor = '#e91e63';
+        document.getElementById('photoReveal').style.display = 'block';
+    }
+
+    // February 2026 calendar: Feb 1 = Sunday
+    (function buildCalendar() {
+        const grid = document.getElementById('dateGrid');
+        for (let i = 0; i < 6; i++) {
+            const blank = document.createElement('div');
+            blank.style.visibility = 'hidden';
+            grid.appendChild(blank);
+        }
+        for (let d = 1; d <= 28; d++) {
+            const cell = document.createElement('button');
+            cell.className = 'date-cell';
+            cell.textContent = d;
+            cell.onclick = function () { checkDate(this, d); };
+            grid.appendChild(cell);
+        }
+    })();
+
+    function checkDate(cell, day) {
+        if (day === 28) {
+            document.querySelectorAll('.date-cell').forEach(c => {
+                c.style.pointerEvents = 'none';
+                c.style.opacity = '0.3';
+            });
+            cell.style.opacity = '1';
+            cell.style.background = 'rgba(76, 175, 80, 0.5)';
+            cell.style.borderColor = '#4caf50';
+            cell.style.transform = 'scale(1.25)';
+            cell.style.fontWeight = '700';
+            document.getElementById('dateCorrect').style.display = 'block';
+            document.getElementById('dateWrong').style.display = 'none';
+        } else {
+            cell.style.background = 'rgba(244, 67, 54, 0.3)';
+            cell.style.borderColor = '#f44336';
+            cell.style.animation = 'shake 0.4s ease';
+            document.getElementById('dateWrong').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('dateWrong').style.display = 'none';
+                cell.style.animation = '';
+            }, 1500);
+        }
+    }
+
+    function checkDrink(btn, isCorrect) {
+        const card = btn.closest('.quiz-card');
+        if (isCorrect) {
+            card.querySelectorAll('.quiz-option').forEach(o => o.classList.add('disabled'));
+            btn.classList.remove('disabled');
+            btn.classList.add('correct');
+            document.getElementById('drinkCorrect').style.display = 'block';
+            document.getElementById('drinkWrong').style.display = 'none';
+        } else {
+            btn.classList.add('wrong');
+            btn.style.animation = 'shake 0.4s ease';
+            document.getElementById('drinkWrong').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('drinkWrong').style.display = 'none';
+                btn.style.animation = '';
+                btn.classList.remove('wrong');
+            }, 1500);
+        }
+    }
+
+    function showResponse(btn, respId) {
+        const card = btn.closest('.quiz-card');
+        card.querySelectorAll('.quiz-option').forEach(o => o.classList.add('disabled'));
+        btn.classList.remove('disabled');
+        btn.style.background = 'rgba(233, 30, 99, 0.4)';
+        btn.style.borderColor = '#e91e63';
+        document.getElementById(respId).style.display = 'block';
+    }
+
+    function handleSlider(el) {
+        const val = parseInt(el.value);
+        if (val < 85) {
+            el.style.animation = 'shake 0.3s ease';
+            setTimeout(() => {
+                el.value = 100;
+                el.style.animation = '';
+            }, 300);
+        } else if (val < 100) {
+            setTimeout(() => { el.value = 100; }, 150);
+        }
+        document.getElementById('rateText').textContent = 'Лучший на свете';
+        document.getElementById('rateEmoji').textContent = '🥇';
+    }
+
+    function goToFinale() {
+        goTo('screen9', 8);
+        document.getElementById('progressBar').style.width = '100%';
+        launchConfetti();
+    }
+
+    function launchConfetti() {
+        const colors = ['#e91e63', '#ff5252', '#ff80ab', '#f48fb1',
+            '#ffeb3b', '#ffd740', '#4caf50', '#2196f3', '#9c27b0', '#ff9800', '#00e5ff'];
+        const shapes = ['circle', 'rect', 'heart'];
+
+        function createPiece(delay) {
+            const c = document.createElement('div');
+            c.className = 'confetti-piece';
+            c.style.left = Math.random() * 100 + 'vw';
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const shape = shapes[Math.floor(Math.random() * shapes.length)];
+            const size = Math.random() * 10 + 6;
+
+            if (shape === 'heart') {
+                c.textContent = '❤';
+                c.style.fontSize = size + 'px';
+                c.style.color = color;
+            } else {
+                c.style.background = color;
+                c.style.width = size + 'px';
+                c.style.height = (shape === 'rect' ? size * 0.6 : size) + 'px';
+                c.style.borderRadius = shape === 'circle' ? '50%' : '2px';
+            }
+            c.style.animationDuration = (Math.random() * 3 + 2) + 's';
+            c.style.animationDelay = delay + 's';
+            document.body.appendChild(c);
+            setTimeout(() => c.remove(), 7000);
+        }
+
+        for (let i = 0; i < 100; i++) createPiece(Math.random() * 0.5);
+        setTimeout(() => { for (let i = 0; i < 60; i++) createPiece(Math.random() * 0.5); }, 2000);
+        setTimeout(() => { for (let i = 0; i < 40; i++) createPiece(Math.random() * 0.5); }, 4000);
+    }
+
+    // Floating hearts background
+    setInterval(() => {
+        const emojis = ['💗', '💕', '✨', '💫', '🌸', '💖'];
+        const heart = document.createElement('div');
+        heart.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        heart.style.cssText = `
+            position:fixed; left:${Math.random() * 100}vw; bottom:-20px;
+            font-size:${Math.random() * 16 + 10}px; opacity:0.2;
+            pointer-events:none; transition:all 5s linear; z-index:0;
+        `;
+        document.body.appendChild(heart);
+        requestAnimationFrame(() => {
+            heart.style.bottom = '110vh';
+            heart.style.opacity = '0';
+        });
+        setTimeout(() => heart.remove(), 5500);
+    }, 1200);
+</script>
+
+</body>
+</html>

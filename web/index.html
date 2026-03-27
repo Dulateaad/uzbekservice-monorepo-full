@@ -18,24 +18,93 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="ODO.UZ - Платформа для соединения клиентов со специалистами в Узбекистане и Казахстане">
 
-  <!-- iOS meta tags & icons -->
+  <!-- iOS meta tags & icons (PWA) -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ODO.UZ">
+  <meta name="format-detection" content="telephone=no">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#2196F3">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="ODO.UZ">
+  <meta name="msapplication-TileColor" content="#2196F3">
+  <meta name="msapplication-tap-highlight" content="no">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>ODO.UZ</title>
+  <title>ODO.UZ - Найти специалиста</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- PWA: Register Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Регистрируем наш service worker для PWA
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('✅ PWA Service Worker зарегистрирован:', registration.scope);
+            
+            // Проверяем обновления
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Новый service worker доступен, можно показать уведомление
+                  console.log('🔄 Новый Service Worker доступен');
+                }
+              });
+            });
+          })
+          .catch((error) => {
+            console.warn('⚠️ Ошибка регистрации PWA Service Worker:', error);
+          });
+      });
+    }
+  </script>
 
   <script>
     // The value below is injected by flutter build, do not touch.
     var serviceWorkerVersion = null;
+  </script>
+  
+  <!-- Перехватчик ошибок от расширений браузера -->
+  <script>
+    // Подавляем ошибки от расширений браузера
+    (function() {
+      'use strict';
+      
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+        const message = args.join(' ');
+        // Подавляем ошибки от расширений браузера
+        if (message.includes('share-modal') || 
+            message.includes('chrome-extension://') ||
+            message.includes('moz-extension://') ||
+            message.includes('Cannot read properties of null')) {
+          return;
+        }
+        originalConsoleError.apply(console, args);
+      };
+      
+      window.onerror = function(message, source) {
+        const messageStr = String(message || '');
+        const sourceStr = String(source || '');
+        
+        if (messageStr.includes('share-modal') || 
+            sourceStr.includes('chrome-extension://') ||
+            sourceStr.includes('moz-extension://')) {
+          return true;
+        }
+        return false;
+      };
+    })();
   </script>
   
   <!-- Firebase SDK -->
@@ -43,42 +112,114 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+  
+  <!-- Cloudflare Turnstile (защита от ботов) -->
+  <link rel="preconnect" href="https://challenges.cloudflare.com">
+  <link rel="dns-prefetch" href="https://challenges.cloudflare.com">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  
+  <script>
+    // Cloudflare Turnstile глобальные функции
+    window.turnstileToken = null;
+    window.turnstileWidgetId = null;
+    
+    // Функция для рендеринга Turnstile виджета
+    window.renderTurnstile = function(containerId, siteKey, callback) {
+      if (typeof turnstile === 'undefined') {
+        console.log('⏳ Turnstile еще загружается...');
+        setTimeout(() => window.renderTurnstile(containerId, siteKey, callback), 500);
+        return;
+      }
+      
+      const container = document.getElementById(containerId);
+      if (!container) {
+        console.error('❌ Контейнер не найден:', containerId);
+        return;
+      }
+      
+      // Удаляем предыдущий виджет если есть
+      if (window.turnstileWidgetId) {
+        try {
+          turnstile.remove(window.turnstileWidgetId);
+        } catch (e) {}
+      }
+      
+      console.log('🔄 Рендеринг Cloudflare Turnstile...');
+      
+      window.turnstileWidgetId = turnstile.render(container, {
+        sitekey: siteKey,
+        theme: 'light',
+        language: 'ru',
+        callback: function(token) {
+          console.log('✅ Turnstile верификация успешна');
+          window.turnstileToken = token;
+          if (callback) callback(token);
+        },
+        'error-callback': function() {
+          console.error('❌ Ошибка Turnstile');
+          window.turnstileToken = null;
+        },
+        'expired-callback': function() {
+          console.log('⚠️ Turnstile токен истек');
+          window.turnstileToken = null;
+        }
+      });
+    };
+    
+    // Функция для получения токена
+    window.getTurnstileToken = function() {
+      return window.turnstileToken;
+    };
+    
+    // Функция для сброса виджета
+    window.resetTurnstile = function() {
+      if (window.turnstileWidgetId && typeof turnstile !== 'undefined') {
+        turnstile.reset(window.turnstileWidgetId);
+        window.turnstileToken = null;
+      }
+    };
+  </script>
          <script>
-           // Firebase configuration
+           // Gemini API для распознавания чеков (Business Hub OCR)
+           // Получите ключ: https://aistudio.google.com/apikey
+           window.GEMINI_API_KEY = 'AIzaSyC2OkllHVzVcmBThzC2OBl_UoF6eAYXc1A';  // Замените на ваш API ключ
+           
+           // Firebase configuration (odo-business-hub)
            const firebaseConfig = {
-             apiKey: "AIzaSyAa8kAiaItTeaf2UTE1T2fDxV_Z57z7cjk",
-             authDomain: "odo-uz-1f4d9.firebaseapp.com",
-             projectId: "odo-uz-1f4d9",
-             storageBucket: "odo-uz-1f4d9.firebasestorage.app",
-             messagingSenderId: "747555139152",
-             appId: "1:747555139152:web:7ba508c04a65dc11946b55"
+             apiKey: "AIzaSyC9CTXPa_2UzpVAiLzTR1hlVm7RD6cmhHw",
+             authDomain: "odo-business-hub.firebaseapp.com",
+             projectId: "odo-business-hub",
+             storageBucket: "odo-business-hub.firebasestorage.app",
+             messagingSenderId: "678613616925",
+             appId: "1:678613616925:web:2f35b684fe08c0d2a439f4"
            };
            // Initialize Firebase
            firebase.initializeApp(firebaseConfig);
            
-           // Регистрируем service worker для push-уведомлений
+           // Firebase инициализирован
+           if (firebase.auth) {
+             console.log('✅ Firebase инициализирован (Firestore, Storage)');
+             console.log('🔐 Аутентификация через Twilio SMS + Cloudflare Turnstile');
+           }
+           
+           // Слушаем сообщения от service worker (клики по уведомлениям)
            if ('serviceWorker' in navigator) {
-             navigator.serviceWorker.register('/firebase-messaging-sw.js')
-               .then((registration) => {
-                 console.log('✅ Service Worker зарегистрирован:', registration.scope);
-                 
-                 // Слушаем сообщения от service worker (клики по уведомлениям)
-                 navigator.serviceWorker.addEventListener('message', (event) => {
-                   if (event.data && event.data.type === 'notification_click') {
-                     console.log('📱 Обработка клика по уведомлению:', event.data);
-                     // Навигация будет обработана через Flutter
-                     // Можно отправить сообщение в Flutter через window.postMessage
-                     window.postMessage({
-                       type: 'notification_click',
-                       data: event.data.data,
-                       url: event.data.url
-                     }, '*');
-                   }
-                 });
-               })
-               .catch((error) => {
-                 console.error('❌ Ошибка регистрации Service Worker:', error);
+             try {
+               navigator.serviceWorker.addEventListener('message', (event) => {
+                 if (event && event.data && event.data.type === 'notification_click') {
+                   console.log('📱 Обработка клика по уведомлению:', event.data);
+                   // Навигация будет обработана через Flutter
+                   // Можно отправить сообщение в Flutter через window.postMessage
+                   window.postMessage({
+                     type: 'notification_click',
+                     data: event.data.data,
+                     url: event.data.url
+                   }, '*');
+                 }
                });
+             } catch (e) {
+               console.debug('Service worker message listener error:', e);
+             }
            }
          </script>
   
@@ -116,6 +257,8 @@
       const script = document.createElement('script');
       script.async = true;
       script.defer = true;
+      // Добавляем loading=async для оптимизации (убирает предупреждение)
+      script.setAttribute('loading', 'async');
       // Используем callback для гарантированной загрузки
       const callbackName = 'initGoogleMaps_' + Date.now();
       window[callbackName] = function() {
@@ -134,7 +277,9 @@
         delete window[callbackName];
       };
       
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyAomtM5KaHgrG95yTVN5Wirn46Qgq--yKY&libraries=places&callback=${callbackName}`;
+      // Используем loading=async в URL для оптимизации производительности
+      // Добавляем библиотеку marker для AdvancedMarkerElement
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFHmNf-RhcwfdfBJyqm20eEuQaybgHMgc&libraries=places,marker&loading=async&callback=${callbackName}`;
       
       script.onerror = () => {
         console.error('❌ Ошибка загрузки Google Maps API');
@@ -150,10 +295,21 @@
       document.head.appendChild(script);
     };
     
-    // Предзагрузка Google Maps API при загрузке страницы
+    // Предзагрузка Google Maps API при загрузке страницы (для ускорения)
     window.addEventListener('DOMContentLoaded', function() {
-      // Не загружаем сразу, только по требованию
-      console.log('📄 Страница загружена, Google Maps будет загружен по требованию');
+      // Предзагружаем Google Maps API в фоне для быстрой загрузки карты
+      // Используем link preload для оптимизации
+      const link = document.createElement('link');
+      link.rel = 'preconnect';
+      link.href = 'https://maps.googleapis.com';
+      document.head.appendChild(link);
+      
+      const link2 = document.createElement('link');
+      link2.rel = 'dns-prefetch';
+      link2.href = 'https://maps.googleapis.com';
+      document.head.appendChild(link2);
+      
+      console.log('📄 Предзагрузка DNS для Google Maps API...');
     });
   </script>
   
@@ -170,7 +326,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, #00E676, #03A9F4);
+      background: linear-gradient(135deg, #1565C0 0%, #2196F3 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -192,9 +348,14 @@
     
     .logo-text {
       color: white;
-      font-size: 40px;
+      font-size: 28px;
       font-weight: 900;
       text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      letter-spacing: 1px;
+    }
+    
+    .logo-text::after {
+      content: "";
     }
     
     .loading-text {
@@ -207,8 +368,8 @@
     .spinner {
       width: 40px;
       height: 40px;
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top: 4px solid white;
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-top: 4px solid #ffffff;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -247,7 +408,10 @@
         onEntrypointLoaded: function(engineInitializer) {
           engineInitializer.initializeEngine().then(function(appRunner) {
             // Hide loading screen
-            document.getElementById('loading').style.display = 'none';
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) {
+              loadingElement.style.display = 'none';
+            }
             
             // Start the Flutter app
             appRunner.runApp();
@@ -256,9 +420,11 @@
       });
     });
 
+    // Дополнительная обработка ошибок (дублируем для надежности)
+
     // Функция для получения API ключа
     function getGoogleMapsApiKey() {
-      return 'AIzaSyAomtM5KaHgrG95yTVN5Wirn46Qgq--yKY';
+      return 'AIzaSyBFHmNf-RhcwfdfBJyqm20eEuQaybgHMgc';
     }
     
     // Глобальная функция для проверки готовности Google Maps
@@ -266,83 +432,11 @@
       return window.googleMapsReady && window.google && window.google.maps;
     };
     
-    // Функция для скрытия reCAPTCHA после успешной авторизации
-    function hideRecaptcha() {
-      // Скрываем reCAPTCHA виджеты
-      const recaptchaElements = document.querySelectorAll('[id^="recaptcha"], .grecaptcha-badge, iframe[src*="recaptcha"]');
-      recaptchaElements.forEach(element => {
-        if (element && element.style) {
-          element.style.display = 'none';
-          element.style.visibility = 'hidden';
-          element.style.opacity = '0';
-          element.style.position = 'absolute';
-          element.style.left = '-9999px';
-        }
-      });
-      
-      // Также скрываем родительские контейнеры
-      const recaptchaContainers = document.querySelectorAll('div[class*="recaptcha"], div[id*="recaptcha"]');
-      recaptchaContainers.forEach(container => {
-        if (container && container.style) {
-          const hasRecaptcha = container.querySelector('iframe[src*="recaptcha"]');
-          if (hasRecaptcha) {
-            container.style.display = 'none';
-            container.style.visibility = 'hidden';
-          }
-        }
-      });
-      
-      // reCAPTCHA скрыт (без логирования)
-    }
-    
-    // Слушаем изменения состояния аутентификации Firebase
-    if (typeof firebase !== 'undefined' && firebase.auth) {
-      firebase.auth().onAuthStateChanged(function(user) {
-        if (user) {
-          // Пользователь авторизован - скрываем reCAPTCHA
-          setTimeout(hideRecaptcha, 1000); // Небольшая задержка для гарантии
-          // Пользователь авторизован, скрываем reCAPTCHA (без логирования)
-        }
-      });
-    }
-    
-    // Также скрываем reCAPTCHA при навигации (на случай если событие не сработало)
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-      const url = location.href;
-      if (url !== lastUrl) {
-        lastUrl = url;
-        // Если мы не на странице авторизации, скрываем reCAPTCHA
-        if (!url.includes('/auth/phone') && !url.includes('/auth/sms')) {
-          setTimeout(hideRecaptcha, 500);
-        }
-      }
-    }).observe(document, { subtree: true, childList: true });
-    
-    // Периодически проверяем и скрываем reCAPTCHA (fallback)
-    setInterval(function() {
-      // Скрываем только если пользователь авторизован
-      if (typeof firebase !== 'undefined' && firebase.auth) {
-        firebase.auth().onAuthStateChanged(function(user) {
-          if (user && !location.href.includes('/auth/')) {
-            hideRecaptcha();
-          }
-        });
-      }
-    }, 2000);
+    // PWA: защита от случайного закрытия вкладки
+    window.addEventListener('beforeunload', function(e) {
+      e.preventDefault();
+      e.returnValue = '';
+    });
   </script>
-  
-  <style>
-    /* Скрываем reCAPTCHA на страницах после авторизации */
-    body:not([data-page*="auth"]) [id^="recaptcha"],
-    body:not([data-page*="auth"]) .grecaptcha-badge,
-    body:not([data-page*="auth"]) iframe[src*="recaptcha"] {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      position: absolute !important;
-      left: -9999px !important;
-    }
-  </style>
 </body>
 </html>

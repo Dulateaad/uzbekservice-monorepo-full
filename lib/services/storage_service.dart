@@ -207,6 +207,30 @@ class StorageService {
     }
   }
 
+  /// Удаление файла по его download URL (используется для очистки фото инструментов)
+  static Future<void> deleteFileByUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final segments = uri.pathSegments;
+
+      // Формат URL: .../o/<encodedPath>
+      final oIndex = segments.indexOf('o');
+      if (oIndex == -1 || oIndex + 1 >= segments.length) {
+        print('⚠️ Не удалось извлечь путь из URL: $url');
+        return;
+      }
+
+      final encodedPath = segments[oIndex + 1];
+      final path = Uri.decodeFull(encodedPath); // tools%2Fuid%2Ffile.jpg -> tools/uid/file.jpg
+
+      final ref = _storage.ref(path);
+      await ref.delete();
+      print('✅ Файл удален из Storage по URL: $url');
+    } catch (e) {
+      print('⚠️ Ошибка удаления файла по URL (можно игнорировать): $e');
+    }
+  }
+
   // ========== УТИЛИТЫ ==========
 
   /// Получение URL файла по пути

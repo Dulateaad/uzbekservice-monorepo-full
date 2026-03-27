@@ -21,6 +21,7 @@ class FirestoreUser {
   final List<String>? skills; // для специалистов
   final double? rating; // средний рейтинг
   final int? totalOrders; // количество заказов
+  final List<String>? onboardingIntents; // Намерения пользователя при регистрации
 
   FirestoreUser({
     required this.id,
@@ -42,6 +43,7 @@ class FirestoreUser {
     this.skills,
     this.rating,
     this.totalOrders,
+    this.onboardingIntents,
   });
 
   // Конвертация в Map для Firestore
@@ -66,6 +68,7 @@ class FirestoreUser {
       'skills': skills,
       'rating': rating,
       'totalOrders': totalOrders,
+      if (onboardingIntents != null) 'onboardingIntents': onboardingIntents,
     };
   }
 
@@ -99,6 +102,9 @@ class FirestoreUser {
       skills: map['skills'] != null ? List<String>.from(map['skills']) : null,
       rating: map['rating']?.toDouble(),
       totalOrders: map['totalOrders'],
+      onboardingIntents: map['onboardingIntents'] != null
+          ? List<String>.from(map['onboardingIntents'])
+          : null,
     );
   }
 
@@ -123,6 +129,7 @@ class FirestoreUser {
     List<String>? skills,
     double? rating,
     int? totalOrders,
+    List<String>? onboardingIntents,
   }) {
     return FirestoreUser(
       id: id ?? this.id,
@@ -144,6 +151,138 @@ class FirestoreUser {
       skills: skills ?? this.skills,
       rating: rating ?? this.rating,
       totalOrders: totalOrders ?? this.totalOrders,
+      onboardingIntents: onboardingIntents ?? this.onboardingIntents,
+    );
+  }
+}
+
+// Модель объявления услуги специалиста
+class ServiceAd {
+  final String id;
+  final String specialistId;
+  final String title; // Название объявления
+  final String description; // Описание услуги
+  final String category; // Категория услуги
+  final double price; // Цена
+  final String? priceUnit; // Единица измерения (за час, за услугу, за м² и т.д.)
+  final List<String> imageUrls; // Фотографии услуги
+  final bool isActive; // Активно ли объявление
+  final bool isPublished; // Опубликовано ли объявление
+  final Map<String, dynamic>? location; // Геолокация {lat: double, lng: double}
+  final String? address; // Адрес
+  final String? phoneNumber; // Контактный телефон
+  final List<String>? tags; // Теги для поиска
+  final int viewCount; // Количество просмотров
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? publishedAt; // Дата публикации
+
+  ServiceAd({
+    required this.id,
+    required this.specialistId,
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.price,
+    this.priceUnit,
+    this.imageUrls = const [],
+    this.isActive = true,
+    this.isPublished = false,
+    this.location,
+    this.address,
+    this.phoneNumber,
+    this.tags,
+    this.viewCount = 0,
+    required this.createdAt,
+    required this.updatedAt,
+    this.publishedAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'specialistId': specialistId,
+      'title': title,
+      'description': description,
+      'category': category,
+      'price': price,
+      'priceUnit': priceUnit,
+      'imageUrls': imageUrls,
+      'isActive': isActive,
+      'isPublished': isPublished,
+      'location': location,
+      'address': address,
+      'phoneNumber': phoneNumber,
+      'tags': tags,
+      'viewCount': viewCount,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+      'publishedAt': publishedAt != null ? Timestamp.fromDate(publishedAt!) : null,
+    };
+  }
+
+  factory ServiceAd.fromMap(Map<String, dynamic> map) {
+    return ServiceAd(
+      id: map['id'] ?? '',
+      specialistId: map['specialistId'] ?? '',
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      category: map['category'] ?? '',
+      price: map['price']?.toDouble() ?? 0.0,
+      priceUnit: map['priceUnit'],
+      imageUrls: map['imageUrls'] != null ? List<String>.from(map['imageUrls']) : const [],
+      isActive: map['isActive'] ?? true,
+      isPublished: map['isPublished'] ?? false,
+      location: map['location'] != null ? Map<String, dynamic>.from(map['location']) : null,
+      address: map['address'],
+      phoneNumber: map['phoneNumber'],
+      tags: map['tags'] != null ? List<String>.from(map['tags']) : null,
+      viewCount: map['viewCount'] ?? 0,
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      publishedAt: map['publishedAt'] != null ? (map['publishedAt'] as Timestamp).toDate() : null,
+    );
+  }
+
+  ServiceAd copyWith({
+    String? id,
+    String? specialistId,
+    String? title,
+    String? description,
+    String? category,
+    double? price,
+    String? priceUnit,
+    List<String>? imageUrls,
+    bool? isActive,
+    bool? isPublished,
+    Map<String, dynamic>? location,
+    String? address,
+    String? phoneNumber,
+    List<String>? tags,
+    int? viewCount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? publishedAt,
+  }) {
+    return ServiceAd(
+      id: id ?? this.id,
+      specialistId: specialistId ?? this.specialistId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      category: category ?? this.category,
+      price: price ?? this.price,
+      priceUnit: priceUnit ?? this.priceUnit,
+      imageUrls: imageUrls ?? this.imageUrls,
+      isActive: isActive ?? this.isActive,
+      isPublished: isPublished ?? this.isPublished,
+      location: location ?? this.location,
+      address: address ?? this.address,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      tags: tags ?? this.tags,
+      viewCount: viewCount ?? this.viewCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      publishedAt: publishedAt ?? this.publishedAt,
     );
   }
 }
@@ -489,4 +628,108 @@ class CitySpecialistRating {
     required this.totalReviews,
     required this.totalOrders,
   });
+}
+
+/// Инструмент / товар специалиста (аренда или продажа)
+class FirestoreToolItem {
+  final String id;
+  final String ownerId; // специалист / мастер
+  final String type; // rent | sale
+  final String title;
+  final String? description;
+  final double price; // цена продажи или аренды за период
+  final String? priceUnit; // "день", "смена", "час" и т.п. (для аренды)
+  final double? deposit; // залог для аренды
+  final bool isAvailable;
+  final String? category;
+  final List<String> imageUrls;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const FirestoreToolItem({
+    required this.id,
+    required this.ownerId,
+    required this.type,
+    required this.title,
+    this.description,
+    required this.price,
+    this.priceUnit,
+    this.deposit,
+    this.isAvailable = true,
+    this.category,
+    this.imageUrls = const [],
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  FirestoreToolItem copyWith({
+    String? id,
+    String? ownerId,
+    String? type,
+    String? title,
+    String? description,
+    double? price,
+    String? priceUnit,
+    double? deposit,
+    bool? isAvailable,
+    String? category,
+    List<String>? imageUrls,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return FirestoreToolItem(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      priceUnit: priceUnit ?? this.priceUnit,
+      deposit: deposit ?? this.deposit,
+      isAvailable: isAvailable ?? this.isAvailable,
+      category: category ?? this.category,
+      imageUrls: imageUrls ?? this.imageUrls,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'ownerId': ownerId,
+      'type': type,
+      'title': title,
+      'description': description,
+      'price': price,
+      'priceUnit': priceUnit,
+      'deposit': deposit,
+      'isAvailable': isAvailable,
+      'category': category,
+      'imageUrls': imageUrls,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  factory FirestoreToolItem.fromMap(Map<String, dynamic> map) {
+    return FirestoreToolItem(
+      id: map['id'] ?? '',
+      ownerId: map['ownerId'] ?? '',
+      type: map['type'] ?? 'rent',
+      title: map['title'] ?? '',
+      description: map['description'],
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
+      priceUnit: map['priceUnit'],
+      deposit: (map['deposit'] as num?)?.toDouble(),
+      isAvailable: map['isAvailable'] ?? true,
+      category: map['category'],
+      imageUrls: (map['imageUrls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
 }

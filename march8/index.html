@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>С 8 марта! 💐</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌸</text></svg>">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;500;700&family=Bad+Script&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Comfortaa', cursive;
+            background: linear-gradient(135deg, #1a1a2e, #2d1b4e, #1a1a2e);
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .screen {
+            min-height: 100vh;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.2rem;
+            position: relative;
+            z-index: 1;
+        }
+        .screen.active { display: flex; }
+
+        .screen h1, .screen .big-title {
+            font-family: 'Bad Script', cursive;
+            font-size: clamp(1.6rem, 4.5vw, 2.8rem);
+            text-align: center;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .video-wrap {
+            width: 100%;
+            max-width: 560px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(233, 30, 99, 0.3);
+            margin: 1.5rem 0;
+            aspect-ratio: 16/9;
+            background: #000;
+        }
+        .video-wrap iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .heart-btn {
+            margin-top: 1.5rem;
+            padding: 1rem 2.5rem;
+            background: linear-gradient(135deg, #e91e63, #ff5252);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-family: 'Comfortaa', cursive;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .heart-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 25px rgba(233, 30, 99, 0.5);
+        }
+
+        .quiz-card {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 2rem 1.8rem;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+        }
+        .quiz-card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .quiz-option {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px;
+            color: white;
+            font-family: 'Comfortaa', cursive;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quiz-option:hover {
+            background: rgba(233, 30, 99, 0.3);
+            border-color: #e91e63;
+            transform: translateY(-2px);
+        }
+        .quiz-option.disabled {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .rebus-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            margin: 1.2rem 0;
+            flex-wrap: wrap;
+        }
+        .rebus-letter {
+            display: inline-block;
+            width: 2rem;
+            height: 2.4rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-family: 'Comfortaa', cursive;
+            font-weight: 700;
+            color: #fff;
+            background: rgba(255,255,255,0.12);
+            border: 2px solid rgba(233, 30, 99, 0.5);
+            border-radius: 10px;
+        }
+        .rebus-letter.fixed {
+            background: rgba(233, 30, 99, 0.25);
+            border-color: #e91e63;
+        }
+        .rebus-letter.input-cell {
+            text-transform: uppercase;
+            caret-color: #ff80ab;
+        }
+        .rebus-letter.input-cell:focus {
+            outline: none;
+            border-color: #e91e63;
+            box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.3);
+        }
+        .rebus-hint {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+            margin-top: 0.5rem;
+        }
+        .rebus-wrong {
+            animation: shake 0.4s ease;
+        }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        .photo-reveal {
+            display: none;
+            margin-top: 1.5rem;
+            animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            text-align: center;
+        }
+        .photo-reveal img {
+            max-width: 100%;
+            border-radius: 16px;
+            border: 3px solid rgba(233, 30, 99, 0.4);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        .photo-reveal .caption {
+            margin-top: 1rem;
+            font-family: 'Bad Script', cursive;
+            font-size: 1.4rem;
+            color: #ff80ab;
+        }
+
+        .two-photos {
+            display: none;
+            margin-top: 1rem;
+            animation: popIn 0.6s ease both;
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+        .two-photos.show {
+            display: flex;
+        }
+        .two-photos img {
+            max-width: 100%;
+            border-radius: 16px;
+            border: 3px solid rgba(233, 30, 99, 0.4);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .flower-burst {
+            position: fixed;
+            pointer-events: none;
+            z-index: 99;
+            font-size: 24px;
+            animation: flowerBurst 1.5s ease-out forwards;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes flowerBurst {
+            0% { transform: translate(0,0) scale(0); opacity: 1; }
+            50% { opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(1.5); opacity: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .finale .details {
+            font-size: 1.1rem;
+            margin-top: 1rem;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            text-align: center;
+            line-height: 2;
+            animation: fadeUp 0.8s ease both;
+        }
+
+        /* ——— мини-игра: путь к подарку (с поворотами) ——— */
+        .game-screen {
+            padding: 1.5rem;
+        }
+        .game-screen .big-title {
+            margin-bottom: 1.5rem;
+        }
+        .path-wrap {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            height: 200px;
+            margin: 0 auto 2rem;
+        }
+        .path-wrap svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .path-wrap .path-track {
+            fill: none;
+            stroke: url(#pathGradient);
+            stroke-width: 14;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 0 12px rgba(233, 30, 99, 0.4));
+        }
+        .path-avatar {
+            position: absolute;
+            width: 72px;
+            height: 72px;
+            margin-left: -36px;
+            margin-top: -36px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid #e91e63;
+            box-shadow: 0 4px 20px rgba(233, 30, 99, 0.5);
+            z-index: 3;
+            transition: left 0.1s ease-out, top 0.1s ease-out;
+            cursor: grab;
+            touch-action: none;
+        }
+        .path-avatar:active { cursor: grabbing; }
+        .path-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .path-gift {
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            margin-left: -32px;
+            margin-top: -32px;
+            font-size: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+        }
+        .game-done-msg {
+            display: none;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-family: 'Bad Script', cursive;
+            font-size: 1.4rem;
+            color: #ff80ab;
+        }
+        .game-done-msg.show { display: block; animation: popIn 0.5s ease both; }
+    </style>
+</head>
+<body>
+
+<!-- 1. Поздравление + клип -->
+<div class="screen active" id="screen1">
+    <h1>С 8 марта самую лучшую<br>девушку на свете! 💐</h1>
+    <div class="video-wrap">
+        <img src="https://firebasestorage.googleapis.com/v0/b/styleai-wardrobe-hw84p.firebasestorage.app/o/%D0%BC%D1%8B.jpg?alt=media&token=d58d71df-7f31-428b-a3cf-e3c58ffa7ea0" alt="Мы" style="width:100%;height:100%;object-fit:cover;">
+    </div>
+    <button class="heart-btn" onclick="goTo('screen2')">Дальше →</button>
+</div>
+
+<!-- 2. Помнишь что дарил? → тюльпаны -->
+<div class="screen" id="screen2">
+    <div class="quiz-card">
+        <h2>Вспомним, как было 8 марта год назад. 🌸<br>Помнишь, что я дарил тебе тогда?</h2>
+        <button class="quiz-option" onclick="showTulips(this)">Да! 😊</button>
+        <button class="quiz-option" onclick="showTulips(this)">Да, конечно! 💕</button>
+        <div class="photo-reveal" id="tulipsReveal">
+            <p class="caption">Какой 8 марта без тюльпанов! 🌷</p>
+            <img src="https://firebasestorage.googleapis.com/v0/b/styleai-wardrobe-hw84p.firebasestorage.app/o/8%D0%BC%D0%B0.jpg?alt=media&token=48efd87a-a61d-45bb-9697-195abae65b2c" alt="С тюльпанами">
+            <br>
+            <button class="heart-btn" style="margin-top:1.5rem" onclick="goTo('screen3')">Дальше →</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Второй подарок? → ребус БРАСЛЕТ (ввод РАСЛЕ) -->
+<div class="screen" id="screen3">
+    <div class="quiz-card">
+        <h2>Это был не единственный подарок. Угадай второй? 💝</h2>
+        <p class="rebus-hint">Вставь недостающие буквы (5 букв)</p>
+        <div class="rebus-row" id="rebusRow">
+            <span class="rebus-letter fixed">Б</span>
+            <input type="text" class="rebus-letter input-cell" maxlength="1" data-i="0" aria-label="Буква 1">
+            <input type="text" class="rebus-letter input-cell" maxlength="1" data-i="1" aria-label="Буква 2">
+            <input type="text" class="rebus-letter input-cell" maxlength="1" data-i="2" aria-label="Буква 3">
+            <input type="text" class="rebus-letter input-cell" maxlength="1" data-i="3" aria-label="Буква 4">
+            <input type="text" class="rebus-letter input-cell" maxlength="1" data-i="4" aria-label="Буква 5">
+            <span class="rebus-letter fixed">Т</span>
+        </div>
+        <p class="rebus-hint" id="rebusError" style="color:#ff5252;display:none">Не то — попробуй ещё раз 💕</p>
+        <div class="two-photos" id="braceletReveal">
+            <p class="caption" style="display:block;margin-bottom:0.5rem">Даа! Это был браслет 💕</p>
+            <img src="https://firebasestorage.googleapis.com/v0/b/styleai-wardrobe-hw84p.firebasestorage.app/o/8%D0%BC%D0%B0%D1%80%D1%82.jpg?alt=media&token=5d57515c-4f78-4ade-8df6-0bbd5f7114d7" alt="Браслет" style="max-width:280px">
+            <img src="https://firebasestorage.googleapis.com/v0/b/styleai-wardrobe-hw84p.firebasestorage.app/o/8%D0%BC%D0%B0%D0%B0%D0%B0.jpg?alt=media&token=b9f47d43-6e4a-49d1-af87-4552c81f02dc" alt="Ты" style="max-width:320px">
+            <button class="heart-btn" style="margin-top:1.5rem" onclick="goTo('screenGame')">Но на этом мы не заканчиваем →</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3.5 Мини-игра: свайп к подарку -->
+<div class="screen game-screen" id="screenGame">
+    <h1 class="big-title">Помогите Аидику дойти до подарка 🎁</h1>
+    <p class="game-done-msg" id="gameDoneMsg">Ура! Теперь твой подарок ждёт 💕</p>
+    <div class="path-wrap" id="pathWrap">
+        <svg viewBox="0 0 420 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="rgba(233, 30, 99, 0.5)"/>
+                    <stop offset="100%" stop-color="rgba(255, 82, 82, 0.8)"/>
+                </linearGradient>
+            </defs>
+            <!-- путь с поворотами: старт → вправо → вниз → вправо → вверх → к подарку -->
+            <path class="path-track" id="pathTrack" d="M 50,100 H 150 V 160 H 270 V 100 H 370"/>
+        </svg>
+        <div class="path-avatar" id="pathAvatar" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <img src="https://firebasestorage.googleapis.com/v0/b/styleai-wardrobe-hw84p.firebasestorage.app/o/%D0%B0%D0%B8%D0%B4%D0%B8%D0%BA.jpg?alt=media&token=6189d97f-201e-479c-92fb-57529e38bd9b" alt="Ты">
+        </div>
+        <div class="path-gift" id="pathGiftEl" aria-hidden="true">🎁</div>
+    </div>
+    <button class="heart-btn" id="gameNextBtn" style="display:none" onclick="goTo('screen4')">Забрать подарок →</button>
+</div>
+
+<!-- 4. Финал -->
+<div class="screen finale" id="screen4">
+    <h1>Жди свой подарок — сегодня уже! 🎁</h1>
+    <div class="photo-reveal" style="display:block; margin-top:1rem;">
+        <p class="caption">Два подарка, как и всегда 💕</p>
+        <img src="https://firebasestorage.googleapis.com/v0/b/styleai-wardrobe-hw84p.firebasestorage.app/o/%D0%BC%D0%B8%D0%BC%D0%B8.jpg?alt=media&token=6ba67507-cb4d-402e-a22b-c33e58747b8e" alt="Два подарка" style="max-width:100%; border-radius:16px; border:3px solid rgba(233,30,99,0.4); box-shadow:0 10px 40px rgba(0,0,0,0.4); max-height:50vh; object-fit:contain;">
+    </div>
+    <div class="details">
+        <p style="font-family: 'Bad Script', cursive; font-size: 1.5rem;">
+            Надеюсь, тебе понравится! 💕
+        </p>
+    </div>
+</div>
+
+<script>
+    function goTo(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if (id === 'screenGame' && typeof window.resetPathGame === 'function') window.resetPathGame();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showTulips(btn) {
+        const card = btn.closest('.quiz-card');
+        card.querySelectorAll('.quiz-option').forEach(o => o.classList.add('disabled'));
+        btn.classList.remove('disabled');
+        btn.style.background = 'rgba(233, 30, 99, 0.4)';
+        btn.style.borderColor = '#e91e63';
+        document.getElementById('tulipsReveal').style.display = 'block';
+        launchFlowerBurst();
+    }
+
+    function launchFlowerBurst() {
+        const emojis = ['🌷', '🌸', '💐', '🌹', '🌺', '🪷', '💮'];
+        const count = 40;
+        for (let i = 0; i < count; i++) {
+            const el = document.createElement('div');
+            el.className = 'flower-burst';
+            el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            el.style.left = '50%';
+            el.style.top = '50%';
+            const angle = (Math.PI * 2 * i) / count + Math.random();
+            const dist = 80 + Math.random() * 120;
+            const tx = Math.cos(angle) * dist + (Math.random() - 0.5) * 40;
+            const ty = Math.sin(angle) * dist + (Math.random() - 0.5) * 40;
+            el.style.setProperty('--tx', tx + 'px');
+            el.style.setProperty('--ty', ty + 'px');
+            el.style.animationDelay = (Math.random() * 0.2) + 's';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 2000);
+        }
+    }
+
+    (function initRebus() {
+        const ANSWER = 'РАСЛЕ';
+        const inputs = document.querySelectorAll('#rebusRow .input-cell');
+        const reveal = document.getElementById('braceletReveal');
+        const rebusError = document.getElementById('rebusError');
+
+        function getWord() {
+            return Array.from(inputs).map(inp => (inp.value || '').trim()).join('');
+        }
+        function check() {
+            const word = getWord();
+            if (word.length !== 5) return;
+            if (word.toUpperCase() === ANSWER.toUpperCase()) {
+                rebusError.style.display = 'none';
+                reveal.classList.add('show');
+            } else {
+                rebusError.style.display = 'block';
+                document.getElementById('rebusRow').classList.add('rebus-wrong');
+                setTimeout(() => document.getElementById('rebusRow').classList.remove('rebus-wrong'), 400);
+            }
+        }
+
+        inputs.forEach((inp, i) => {
+            inp.addEventListener('input', function() {
+                const v = this.value.toUpperCase().replace(/[^А-ЯЁ]/gi, '');
+                this.value = v;
+                if (v && i < 4) inputs[i + 1].focus();
+                check();
+            });
+            inp.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' && !this.value && i > 0) inputs[i - 1].focus();
+            });
+            inp.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pasted = (e.clipboardData.getData('text') || '').toUpperCase().replace(/[^А-ЯЁ]/g, '').slice(0, 5);
+                for (let j = 0; j < pasted.length && (i + j) < 5; j++) inputs[i + j].value = pasted[j];
+                if (i + pasted.length <= 5) inputs[Math.min(i + pasted.length, 4)].focus();
+                check();
+            });
+        });
+    })();
+
+    (function initPathGame() {
+        const pathWrap = document.getElementById('pathWrap');
+        const pathTrack = document.getElementById('pathTrack');
+        const pathAvatar = document.getElementById('pathAvatar');
+        const pathGiftEl = document.getElementById('pathGiftEl');
+        const gameDoneMsg = document.getElementById('gameDoneMsg');
+        const gameNextBtn = document.getElementById('gameNextBtn');
+        const VIEWBOX = { w: 420, h: 200 };
+        const DONE_THRESHOLD = 0.92;
+
+        let progress = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startProgress = 0;
+
+        function pathLength() {
+            return pathTrack ? pathTrack.getTotalLength() : 500;
+        }
+        function pointAtProgress(p) {
+            if (!pathTrack) return { x: 0, y: VIEWBOX.h / 2 };
+            const len = pathLength();
+            return pathTrack.getPointAtLength(Math.max(0, Math.min(1, p)) * len);
+        }
+        function svgToPixels(x, y) {
+            if (!pathWrap) return { left: 0, top: 0 };
+            const left = (x / VIEWBOX.w) * pathWrap.offsetWidth;
+            const top = (y / VIEWBOX.h) * pathWrap.offsetHeight;
+            return { left, top };
+        }
+        function updateAvatar() {
+            if (!pathAvatar) return;
+            const pt = pointAtProgress(progress);
+            const pos = svgToPixels(pt.x, pt.y);
+            pathAvatar.style.left = (pos.left - 36) + 'px';
+            pathAvatar.style.top = (pos.top - 36) + 'px';
+            pathAvatar.setAttribute('aria-valuenow', Math.round(progress * 100));
+            if (progress >= DONE_THRESHOLD) {
+                gameDoneMsg.classList.add('show');
+                gameNextBtn.style.display = 'inline-block';
+            }
+        }
+        function placeGift() {
+            if (!pathGiftEl) return;
+            const pt = pointAtProgress(1);
+            const pos = svgToPixels(pt.x, pt.y);
+            pathGiftEl.style.left = (pos.left - 32) + 'px';
+            pathGiftEl.style.top = (pos.top - 32) + 'px';
+        }
+        function resetGame() {
+            progress = 0;
+            gameDoneMsg.classList.remove('show');
+            gameNextBtn.style.display = 'none';
+            placeGift();
+            updateAvatar();
+        }
+
+        function onStart(clientX) {
+            isDragging = true;
+            startX = clientX;
+            startProgress = progress;
+        }
+        function onMove(clientX) {
+            if (!isDragging) return;
+            const dx = clientX - startX;
+            const w = pathWrap ? pathWrap.offsetWidth : 400;
+            const progressDelta = w > 0 ? dx / w : 0;
+            progress = Math.max(0, Math.min(1, startProgress + progressDelta));
+            updateAvatar();
+        }
+        function onEnd() {
+            isDragging = false;
+        }
+
+        pathAvatar.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX); });
+        pathWrap.addEventListener('mousedown', e => {
+            if (pathAvatar.contains(e.target) || pathGiftEl.contains(e.target)) return;
+            e.preventDefault();
+            onStart(e.clientX);
+        });
+        pathWrap.addEventListener('mousemove', e => onMove(e.clientX));
+        pathWrap.addEventListener('mouseleave', onEnd);
+        pathWrap.addEventListener('mouseup', onEnd);
+
+        pathAvatar.addEventListener('touchstart', e => {
+            e.preventDefault();
+            onStart(e.touches[0].clientX);
+        }, { passive: false });
+        pathWrap.addEventListener('touchstart', e => {
+            if (pathAvatar.contains(e.target) || pathGiftEl.contains(e.target)) return;
+            e.preventDefault();
+            onStart(e.touches[0].clientX);
+        }, { passive: false });
+        pathWrap.addEventListener('touchmove', e => {
+            if (e.touches.length) onMove(e.touches[0].clientX);
+        }, { passive: true });
+        pathWrap.addEventListener('touchend', onEnd);
+        pathWrap.addEventListener('touchcancel', onEnd);
+
+        document.addEventListener('mouseup', onEnd);
+
+        placeGift();
+        updateAvatar();
+        window.resetPathGame = resetGame;
+    })();
+</script>
+
+</body>
+</html>

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_constants.dart';
-import '../../widgets/design_system_button.dart';
 import '../../widgets/category_card.dart';
 import '../../widgets/specialist_card.dart';
 import '../../widgets/search_bar.dart';
 import '../../widgets/banner_carousel.dart';
 import '../../widgets/top_specialist_card.dart';
+import '../../widgets/odo_business_hub_logo.dart';
+import '../../widgets/odo_vacancy_logo.dart';
 import '../../providers/firestore_providers.dart';
 import '../../providers/firestore_auth_provider.dart';
-import '../../services/test_data_service.dart';
+import '../../providers/brain_lobe_progress_provider.dart';
+import '../../widgets/brain_regions_map.dart';
 
 class NewClientHomeScreen extends ConsumerStatefulWidget {
   const NewClientHomeScreen({super.key});
@@ -58,10 +61,19 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
               // Search Bar
               _buildSearchBar(),
               
+              const SizedBox(height: AppConstants.spacingMD),
+              
+              // Find Nearby Button
+              _buildFindNearbyButton(),
+              
               const SizedBox(height: AppConstants.spacingLG),
               
               // Carousel Banner
               _buildBannerCarousel(),
+              
+              const SizedBox(height: AppConstants.spacingLG),
+
+              _buildBrainRegionsCard(context, ref),
               
               const SizedBox(height: AppConstants.spacingLG),
               
@@ -77,6 +89,11 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
               
               // Recommended Specialists Section
               _buildRecommendedSpecialistsSection(),
+              
+              const SizedBox(height: AppConstants.spacingLG),
+              
+              // Services Section (Business Hub & Vacancy)
+              _buildServicesSection(context),
               
               const SizedBox(height: AppConstants.spacingLG),
             ],
@@ -203,6 +220,64 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
     );
   }
 
+  Widget _buildFindNearbyButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          context.push('/home/maps/find-nearby');
+        },
+        borderRadius: BorderRadius.circular(AppConstants.radiusLG),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingMD,
+            vertical: AppConstants.spacingMD,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppConstants.secondaryColor,
+                AppConstants.secondaryDarkColor,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppConstants.radiusLG),
+            boxShadow: [
+              BoxShadow(
+                color: AppConstants.secondaryColor.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.location_on,
+                color: Colors.white,
+                size: 24,
+              ),
+              const SizedBox(width: AppConstants.spacingSM),
+              Text(
+                'Найти специалистов рядом',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: AppConstants.fontFamily,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBannerCarousel() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,6 +294,60 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
           height: 180,
         ),
       ],
+    );
+  }
+
+  /// Карта зон мозга (серые по умолчанию; подсветка через [brainLobeProgressProvider]).
+  Widget _buildBrainRegionsCard(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(brainLobeProgressProvider);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppConstants.spacingMD),
+      decoration: BoxDecoration(
+        color: AppConstants.surfaceColor,
+        borderRadius: BorderRadius.circular(AppConstants.radiusLG),
+        border: Border.all(color: AppConstants.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.psychology_outlined, color: AppConstants.primaryColor, size: 22),
+              const SizedBox(width: AppConstants.spacingSM),
+              Text(
+                'Зоны активности',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingSM),
+          Text(
+            'По мере выполнения заданий в приложении подсвечиваются соответствующие области.',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppConstants.textSecondary,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingMD),
+          Center(
+            child: BrainRegionsMap(
+              activeLobes: active,
+              height: 190,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -314,7 +443,7 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
                   color: category['color']!,
                   emoji: category['emoji']!,
                   onTap: () {
-                    context.go('/home/categories');
+                    context.go('/home/specialists/${category['id']}');
                   },
                 ),
               );
@@ -363,89 +492,63 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
             final specialistsState = ref.watch(specialistsProvider);
             
             if (specialistsState.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(),
+              return const SizedBox(
+                height: 160,
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
               );
             }
             
             if (specialistsState.error != null) {
-              return Center(
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Ошибка загрузки специалистов',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ],
+              return SizedBox(
+                height: 160,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 32,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ошибка загрузки',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
             
             if (specialistsState.specialists.isEmpty) {
-              return Center(
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.person_search,
-                      size: 48,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Специалисты не найдены',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ],
-                ),
-              );
+              return const SizedBox.shrink();
             }
             
-            // Берем топ 3 специалистов с лучшим рейтингом
+            // Берем топ 3 специалистов с лучшим рейтингом (оптимизировано)
             final topSpecialists = specialistsState.specialists
                 .where((s) => s.rating != null && s.rating! > 4.5)
                 .take(3)
                 .toList();
             
-            if (topSpecialists.isEmpty) {
-              // Если нет топ специалистов, берем первых 3
-              final fallbackSpecialists = specialistsState.specialists.take(3).toList();
-              return SizedBox(
-                height: 160,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: fallbackSpecialists.length,
-                  itemBuilder: (context, index) {
-                    final specialist = fallbackSpecialists[index];
-                    return TopSpecialistCard(
-                      specialist: specialist,
-                      onTap: () {
-                        context.go('/home/specialist/${specialist.id}');
-                      },
-                      onBook: () {
-                        context.go('/home/booking/service-selection/${specialist.id}');
-                      },
-                      onChat: () {
-                        // TODO: Navigate to chat
-                      },
-                    );
-                  },
-                ),
-              );
+            final displaySpecialists = topSpecialists.isEmpty 
+                ? specialistsState.specialists.take(3).toList()
+                : topSpecialists;
+            
+            if (displaySpecialists.isEmpty) {
+              return const SizedBox.shrink();
             }
             
             return SizedBox(
               height: 160,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: topSpecialists.length,
+                cacheExtent: 200, // Кэширование для плавности
+                itemCount: displaySpecialists.length,
                 itemBuilder: (context, index) {
-                  final specialist = topSpecialists[index];
+                  final specialist = displaySpecialists[index];
                   return TopSpecialistCard(
                     specialist: specialist,
                     onTap: () {
@@ -500,55 +603,52 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
             final specialistsState = ref.watch(specialistsProvider);
             
             if (specialistsState.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(),
+              return const SizedBox(
+                height: 200,
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
               );
             }
             
             if (specialistsState.error != null) {
-              return Center(
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Ошибка загрузки специалистов',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ],
+              return SizedBox(
+                height: 200,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 32,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ошибка загрузки',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
             
             if (specialistsState.specialists.isEmpty) {
-              return Center(
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.person_search,
-                      size: 48,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Специалисты не найдены',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ],
-                ),
-              );
+              return const SizedBox.shrink();
             }
             
-            // Берем рекомендованных специалистов (пропускаем топ 3)
+            // Берем рекомендованных специалистов (пропускаем топ 3, оптимизировано)
             final recommendedSpecialists = specialistsState.specialists.skip(3).take(5).toList();
+            
+            if (recommendedSpecialists.isEmpty) {
+              return const SizedBox.shrink();
+            }
             
             return ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              cacheExtent: 500, // Кэширование для плавности
               itemCount: recommendedSpecialists.length,
               itemBuilder: (context, index) {
                 final specialist = recommendedSpecialists[index];
@@ -578,6 +678,147 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildServicesSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingXS),
+          child: Text(
+            'Дополнительные сервисы',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppConstants.textPrimary,
+                ),
+          ),
+        ),
+        const SizedBox(height: AppConstants.spacingMD),
+        _buildBusinessHubButton(context),
+        const SizedBox(height: AppConstants.spacingMD),
+        _buildVacancyButton(context),
+      ],
+    );
+  }
+
+  Widget _buildBusinessHubButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        const url = 'https://studio--studio-122846357-42699.us-central1.hosted.app/';
+        try {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Не удалось открыть: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingMD,
+          vertical: AppConstants.spacingMD,
+        ),
+        decoration: BoxDecoration(
+          gradient: AppConstants.primaryGradient,
+          borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+          boxShadow: [
+            BoxShadow(
+              color: AppConstants.primaryColor.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const OdoBusinessHubLogo(
+              size: 28,
+              blueColor: Colors.white,
+              greenColor: Colors.white,
+            ),
+            const SizedBox(width: AppConstants.spacingSM),
+            Text(
+              'Odo Business Hub',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                fontFamily: AppConstants.fontFamily,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVacancyButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        context.go('/vacancy');
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingMD,
+          vertical: AppConstants.spacingMD,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF10B981), // Зелёный
+              const Color(0xFF059669),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(AppConstants.radiusXL),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF10B981).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const OdoVacancyLogo(
+              size: 28,
+              blueColor: Colors.white,
+              greenColor: Colors.white,
+            ),
+            const SizedBox(width: AppConstants.spacingSM),
+            Text(
+              'ODO Vacancy',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                fontFamily: AppConstants.fontFamily,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

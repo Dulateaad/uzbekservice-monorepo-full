@@ -407,3 +407,62 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
 final reviewsProvider = StateNotifierProvider<ReviewsNotifier, ReviewsState>((ref) {
   return ReviewsNotifier();
 });
+
+// ========== ИНСТРУМЕНТЫ / ТОВАРЫ СПЕЦИАЛИСТОВ ==========
+
+class ToolsState {
+  final List<FirestoreToolItem> rentTools;
+  final List<FirestoreToolItem> saleTools;
+  final bool isLoading;
+  final String? error;
+
+  const ToolsState({
+    this.rentTools = const [],
+    this.saleTools = const [],
+    this.isLoading = false,
+    this.error,
+  });
+
+  ToolsState copyWith({
+    List<FirestoreToolItem>? rentTools,
+    List<FirestoreToolItem>? saleTools,
+    bool? isLoading,
+    String? error,
+  }) {
+    return ToolsState(
+      rentTools: rentTools ?? this.rentTools,
+      saleTools: saleTools ?? this.saleTools,
+      isLoading: isLoading ?? this.isLoading,
+      error: error ?? this.error,
+    );
+  }
+}
+
+class ToolsNotifier extends StateNotifier<ToolsState> {
+  ToolsNotifier() : super(const ToolsState());
+
+  Future<void> loadToolsForSpecialist(String ownerId) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final rent = await FirestoreService.getSpecialistTools(ownerId, type: 'rent');
+      final sale = await FirestoreService.getSpecialistTools(ownerId, type: 'sale');
+      state = state.copyWith(
+        rentTools: rent,
+        saleTools: sale,
+        isLoading: false,
+        error: null,
+      );
+      print('✅ Загружено инструментов: аренда=${rent.length}, продажа=${sale.length}');
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+      print('❌ Ошибка загрузки инструментов: $e');
+    }
+  }
+}
+
+final toolsProvider = StateNotifierProvider<ToolsNotifier, ToolsState>((ref) {
+  return ToolsNotifier();
+});

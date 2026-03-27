@@ -79,7 +79,7 @@ class HomeScreen extends ConsumerWidget {
                   color: category['color'],
                   emoji: category['emoji'],
                   onTap: () {
-                    context.go('/home/categories');
+                    context.go('/home/specialists/${category['id']}');
                   },
                 );
               },

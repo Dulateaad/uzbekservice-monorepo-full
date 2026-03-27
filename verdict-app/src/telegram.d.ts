@@ -7,6 +7,8 @@ declare global {
         close: () => void;
         enableClosingConfirmation: () => void;
         disableClosingConfirmation: () => void;
+        disableVerticalSwipes?: () => void;
+        enableVerticalSwipes?: () => void;
         MainButton: {
           text: string;
           color: string;

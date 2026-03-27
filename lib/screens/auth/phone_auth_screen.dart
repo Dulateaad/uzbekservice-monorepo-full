@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
@@ -6,9 +7,11 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/glass_card.dart';
-import '../../services/firebase_auth_service.dart';
+import '../../services/twilio_sms_service.dart';
 import '../../providers/firestore_auth_provider.dart';
 import '../../widgets/simple_country_selector.dart';
+import '../../widgets/cloudflare_turnstile_widget.dart';
+import '../../services/cloudflare_turnstile_service.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -20,11 +23,12 @@ class PhoneAuthScreen extends ConsumerStatefulWidget {
 class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
-  final _firebaseAuthService = FirebaseAuthService();
+  final _twilioSmsService = TwilioSmsService();
   bool _isLoading = false;
   String _selectedUserType = 'client'; // client или specialist
   String _selectedCountryCode = 'UZ';
   String? _verificationId;
+  bool _isTurnstileVerified = false; // Cloudflare Turnstile верификация
 
   @override
   void initState() {
@@ -79,6 +83,17 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
 
   void _sendSms() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Проверяем Cloudflare Turnstile на веб-платформе
+    if (kIsWeb && !_isTurnstileVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Пожалуйста, пройдите проверку безопасности'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -135,7 +150,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
         ref.read(firestoreAuthProvider.notifier).setPhoneNumber(phoneNumber);
         
         // Отправляем SMS через Firebase Phone Authentication
-        final result = await _firebaseAuthService.sendSmsCode(phoneNumber);
+        final result = await _twilioSmsService.sendSmsCode(phoneNumber);
         
         if (result['success'] == true) {
           _verificationId = result['verificationId'] as String?;
@@ -159,10 +174,8 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
           throw Exception(result['error'] ?? 'Ошибка отправки SMS');
         }
       } else {
-        // Для специалистов - переходим к OneID
-        if (mounted) {
-          context.go('/auth/oneid', extra: _phoneController.text);
-        }
+        // Для специалистов используем тот же SMS метод
+        // OneID удален по запросу
       }
     } catch (e) {
       print('❌ Ошибка отправки SMS: $e');
@@ -275,7 +288,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                 
                 const SizedBox(height: 8),
                 
-                // Специалист - OneID
+                // Специалист - SMS (OneID удален)
                 Card(
                   elevation: _selectedUserType == 'specialist' ? 4 : 1,
                   color: _selectedUserType == 'specialist' 
@@ -283,7 +296,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                       : Colors.white,
                   child: RadioListTile<String>(
                     title: const Text('Специалист'),
-                    subtitle: const Text('Вход через OneID'),
+                    subtitle: const Text('Вход через SMS'),
                     value: 'specialist',
                     groupValue: _selectedUserType,
                     onChanged: (value) {
@@ -376,11 +389,40 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                   },
                 ),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+                
+                // Cloudflare Turnstile (защита от ботов) - только на веб
+                if (kIsWeb) ...[
+                  Text(
+                    'Проверка безопасности',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  CloudflareTurnstileWidget(
+                    onVerified: (token) {
+                      setState(() {
+                        _isTurnstileVerified = true;
+                      });
+                      print('✅ Turnstile верификация пройдена');
+                    },
+                    onError: () {
+                      setState(() {
+                        _isTurnstileVerified = false;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                
+                const SizedBox(height: 16),
                 
                 // Кнопка отправки
                 CustomButton(
-                  text: _selectedUserType == 'client' ? 'Отправить SMS' : 'Войти через OneID',
+                  text: 'Отправить SMS',
                   onPressed: _isLoading ? null : _sendSms,
                   isLoading: _isLoading,
                 ),

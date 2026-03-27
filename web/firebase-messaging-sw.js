@@ -4,14 +4,14 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
-// Firebase configuration
+// Firebase configuration (odo-business-hub)
 const firebaseConfig = {
-  apiKey: "AIzaSyAa8kAiaItTeaf2UTE1T2fDxV_Z57z7cjk",
-  authDomain: "odo-uz-1f4d9.firebaseapp.com",
-  projectId: "odo-uz-1f4d9",
-  storageBucket: "odo-uz-1f4d9.firebasestorage.app",
-  messagingSenderId: "747555139152",
-  appId: "1:747555139152:web:7ba508c04a65dc11946b55"
+  apiKey: "AIzaSyC9CTXPa_2UzpVAiLzTR1hlVm7RD6cmhHw",
+  authDomain: "odo-business-hub.firebaseapp.com",
+  projectId: "odo-business-hub",
+  storageBucket: "odo-business-hub.firebasestorage.app",
+  messagingSenderId: "678613616925",
+  appId: "1:678613616925:web:2f35b684fe08c0d2a439f4"
 };
 
 // Initialize Firebase

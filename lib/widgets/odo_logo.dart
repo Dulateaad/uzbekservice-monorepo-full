@@ -15,56 +15,63 @@ class OdoLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Пробуем сначала PNG, потом JPG
+    // Логотипы из папки assets/images/logos/
     return Image.asset(
-      'assets/images/logo.png',
+      'assets/images/logos/logo.png',
       width: width,
       height: height,
       fit: fit,
       errorBuilder: (context, error, stackTrace) {
-        // Если PNG не найден, пробуем JPG
         return Image.asset(
-          'assets/images/logo.jpg',
+          'assets/images/logo.png',
           width: width,
           height: height,
           fit: fit,
-          errorBuilder: (context, error, stackTrace) {
-        // Fallback на старый текстовый логотип, если изображение не загрузится
-        return Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: AppConstants.secondaryColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'ODO',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: AppConstants.primaryColor,
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '.UZ',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        );
+          errorBuilder: (context, error2, stackTrace2) {
+            return Image.asset(
+              'assets/images/logo.jpg',
+              width: width,
+              height: height,
+              fit: fit,
+              errorBuilder: (context, error3, stackTrace3) {
+                // Fallback на текстовый логотип, если изображения не загрузились
+                return Container(
+                  width: width,
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: AppConstants.secondaryColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'ODO',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: AppConstants.primaryColor,
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '.UZ',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
           },
         );
       },

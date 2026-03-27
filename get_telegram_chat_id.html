@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Получить Telegram Chat ID</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #0088cc;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #006699;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>📱 Получить Telegram Chat ID</h1>
+    
+    <p><strong>Инструкция:</strong></p>
+    <ol>
+        <li>Создайте бота через <a href="https://t.me/BotFather" target="_blank">@BotFather</a></li>
+        <li>Напишите боту любое сообщение</li>
+        <li>Вставьте Bot Token ниже</li>
+        <li>Нажмите "Получить Chat ID"</li>
+    </ol>
+    
+    <input type="text" id="botToken" placeholder="Вставьте Bot Token (например: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz)">
+    <button onclick="getChatId()">Получить Chat ID</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function getChatId() {
+            const token = document.getElementById('botToken').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!token) {
+                resultDiv.innerHTML = '❌ Введите Bot Token!';
+                return;
+            }
+            
+            resultDiv.innerHTML = '⏳ Загрузка...';
+            
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+                const data = await response.json();
+                
+                if (data.ok && data.result.length > 0) {
+                    const chatId = data.result[data.result.length - 1].message.chat.id;
+                    const chatType = data.result[data.result.length - 1].message.chat.type;
+                    const chatTitle = data.result[data.result.length - 1].message.chat.title || 
+                                     data.result[data.result.length - 1].message.chat.first_name || 
+                                     'Не указано';
+                    
+                    resultDiv.innerHTML = `✅ Chat ID найден!\n\n` +
+                        `📱 Chat ID: <strong>${chatId}</strong>\n` +
+                        `📋 Тип: ${chatType}\n` +
+                        `👤 Название: ${chatTitle}\n\n` +
+                        `💡 Используйте этот Chat ID в Firebase Functions:\n` +
+                        `firebase functions:config:set telegram.chat_id="${chatId}"`;
+                } else {
+                    resultDiv.innerHTML = '❌ Сообщений не найдено.\n\n' +
+                        'Напишите боту любое сообщение и попробуйте снова!';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Ошибка: ${error.message}\n\n` +
+                    'Проверьте правильность Bot Token!';
+            }
+        }
+    </script>
+</body>
+</html>

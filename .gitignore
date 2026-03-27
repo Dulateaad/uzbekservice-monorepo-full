@@ -45,111 +45,19 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# iOS related
-**/ios/**/*.mode1v3
-**/ios/**/*.mode2v3
-**/ios/**/*.moved-aside
-**/ios/**/*.pbxuser
-**/ios/**/*.perspectivev3
-**/ios/**/*sync/
-**/ios/**/.sconsign.dblite
-**/ios/**/.tags*
-**/ios/**/.vagrant/
-**/ios/**/DerivedData/
-**/ios/**/Icon?
-**/ios/**/Pods/
-**/ios/**/.symlinks/
-**/ios/**/profile
-**/ios/**/xcuserdata
-**/ios/.generated/
-**/ios/Flutter/App.framework
-**/ios/Flutter/Flutter.framework
-**/ios/Flutter/Flutter.podspec
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/ephemeral
-# Allow xcconfig files (needed for CI/CD)
-!**/ios/Flutter/*.xcconfig
-**/ios/Flutter/app.flx
-**/ios/Flutter/app.zip
-**/ios/Flutter/flutter_assets/
-**/ios/Flutter/flutter_export_environment.sh
-**/ios/ServiceDefinitions.json
-**/ios/Runner/GeneratedPluginRegistrant.*
-
-# Web related
-
-# Exceptions to above rules.
-!**/ios/**/default.mode1v3
-!**/ios/**/default.mode2v3
-!**/ios/**/default.pbxuser
-!**/ios/**/default.perspectivev3
-
-# Environment variables
+# Environment variables and secrets
 .env
 .env.local
-.env.*.local
+*.key
+*.pem
+secrets/
 
 # Firebase
-firebase_options.dart
-google-services.json
-GoogleService-Info.plist
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
 
-# Android Keystore (ВАЖНО: не коммитить!)
-android/key.properties
-android/*.jks
-android/*.keystore
-android/odo_uz_keystore.jks
-
-# Supabase (если нужно скрыть ключи)
-# lib/config/supabase_config.dart - НЕ игнорируем, но можно создать .env
-
-# Build files
-*.apk
-*.aab
-*.ipa
-*.app
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Thumbnails
-._*
-
-# Files that might appear in the root of a volume
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-
-# Directories potentially created on remote AFP share
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
-
-# Flutter SDK (если включен в проект)
-flutter/
-
-# Flutter архивы
-*.zip
-flutter_macos_*.zip
-flutter_*.zip
-
-# Node modules (если есть)
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# Server files
-server-oneid/node_modules/
-
-# Xcode DerivedData
-ios/XcodeDerivedData/
-ios/**/XcodeDerivedData/
-**/XcodeDerivedData/
+# Twilio credentials (если вынесли в отдельный файл)
+twilio_config.dart
+lib/config/twilio_secrets.dart

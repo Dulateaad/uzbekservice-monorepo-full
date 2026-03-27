@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/firestore_models.dart';
 import '../services/firestore_service.dart';
 import '../services/test_data_service.dart';
-import '../services/firebase_auth_service.dart';
+import '../services/twilio_sms_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/analytics_service.dart';
+import '../services/vps_api_service.dart';
 
 class FirestoreAuthState {
   final FirestoreUser? user;
@@ -58,7 +60,7 @@ class FirestoreAuthState {
 }
 
 class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
-  final FirebaseAuthService _firebaseAuthService = FirebaseAuthService();
+  final TwilioSmsService _twilioSmsService = TwilioSmsService();
   static const Map<String, bool> _defaultNotificationPreferences = {
     'push': true,
     'sms': true,
@@ -109,9 +111,9 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
       registrationRole: role,
     );
     
-    final result = await _firebaseAuthService.sendSmsCode(phoneNumber);
+    final result = await _twilioSmsService.sendSmsCode(phoneNumber);
     if (result['success'] == true) {
-      print('📱 SMS код отправлен на $phoneNumber через Firebase');
+      print('📱 SMS код отправлен на $phoneNumber через Twilio');
     } else {
       throw Exception(result['error'] ?? 'Ошибка отправки SMS');
     }
@@ -131,72 +133,44 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
     try {
       print('🔐 Попытка входа с номером: $phoneNumber, код: $smsCode');
 
-      // Проверяем SMS код через Firebase Phone Authentication
-      final isValid = await _firebaseAuthService.verifySmsCode(phoneNumber, smsCode);
+      // Проверяем SMS код через Twilio
+      final isValid = await _twilioSmsService.verifySmsCode(phoneNumber, smsCode);
       
       if (!isValid) {
         throw Exception('Неверный код подтверждения');
       }
 
-      // Получаем Firebase User после успешной верификации
-      final firebaseUser = _firebaseAuthService.currentUser;
-      if (firebaseUser == null) {
-        throw Exception('Ошибка аутентификации: пользователь не найден');
-      }
-      
-      final firebaseUid = firebaseUser.uid;
-      print('✅ Firebase Auth: Пользователь аутентифицирован: $firebaseUid');
+      print('✅ Twilio: SMS код подтвержден для $phoneNumber');
 
-      // Ищем пользователя в Firestore сначала по Firebase UID (правильный способ)
+      // Авторизуемся анонимно в Firebase Auth для доступа к Firestore
+      try {
+        if (FirebaseAuth.instance.currentUser == null) {
+          await FirebaseAuth.instance.signInAnonymously();
+          print('✅ Firebase Anonymous Auth: вход выполнен');
+        }
+      } catch (e) {
+        print('⚠️ Firebase Anonymous Auth ошибка: $e');
+      }
+
+      // Используем номер телефона как идентификатор (вместо Firebase UID)
+      final phoneId = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+
+      // Ищем пользователя в Firestore по номеру телефона
       FirestoreUser? user;
       try {
-        user = await FirestoreService.getUserById(firebaseUid);
-        print('🔍 Поиск пользователя по Firebase UID: ${user != null ? "найден" : "не найден"}');
+        user = await FirestoreService.getUserByPhone(phoneNumber);
+        print('🔍 Поиск пользователя по номеру телефона: ${user != null ? "найден" : "не найден"}');
       } catch (e) {
-        print('⚠️ Ошибка поиска пользователя по Firebase UID: $e');
+        print('⚠️ Ошибка поиска пользователя по номеру телефона: $e');
       }
       
-      // Если не найден по Firebase UID, ищем по телефону (fallback для старых пользователей)
-      if (user == null) {
-        try {
-          final userByPhone = await FirestoreService.getUserByPhone(phoneNumber);
-          if (userByPhone != null) {
-            print('🔍 Найден пользователь по телефону, ID: ${userByPhone.id}, Firebase UID: $firebaseUid');
-            // Всегда используем Firebase UID как ID
-            // Создаем пользователя с правильным Firebase UID
-            user = userByPhone.copyWith(
-              id: firebaseUid,
-              updatedAt: DateTime.now(),
-            );
-            user = _withNotificationDefaults(user);
-            try {
-              // Пытаемся создать пользователя с Firebase UID
-              await FirestoreService.createUser(user);
-              print('✅ Пользователь создан с Firebase UID: $firebaseUid');
-            } catch (e) {
-              print('⚠️ Ошибка при создании пользователя с Firebase UID: $e');
-              // Если документ уже существует, пытаемся обновить
-              try {
-                await FirestoreService.updateUser(user);
-                print('✅ Пользователь обновлен в Firestore');
-              } catch (updateError) {
-                print('⚠️ Не удалось обновить пользователя: $updateError');
-                // Используем пользователя локально
-              }
-            }
-          }
-        } catch (e) {
-          print('⚠️ Firestore недоступен при поиске по телефону: $e');
-        }
-      }
-      
-      // Если пользователь все еще не найден
+      // Если пользователь не найден, создаем нового
       if (user == null) {
         // Если есть имя в registrationName - это регистрация
-        if (state.registrationName != null && state.registrationName!.isNotEmpty) {
-          print('📝 Создаем нового пользователя (регистрация) с Firebase UID: $firebaseUid');
+        if (registrationName != null && registrationName!.isNotEmpty) {
+          print('📝 Создаем нового пользователя (регистрация) с номером телефона: $phoneId');
           user = _withNotificationDefaults(FirestoreUser(
-            id: firebaseUid,
+            id: phoneId,
             phoneNumber: phoneNumber,
             name: registrationName ?? state.registrationName ?? 'Пользователь',
             userType: registrationUserType ?? state.registrationUserType ?? 'client',
@@ -215,9 +189,29 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
                 (state.registrationIntentId != null ? [state.registrationIntentId!] : null),
           ));
           
+          // Сохраняем чувствительные данные на VPS (для граждан Узбекистана)
           try {
-            await FirestoreService.createUser(user);
-            print('✅ Новый пользователь создан в Firestore: $firebaseUid');
+            final isUzbekCitizen = phoneNumber.startsWith('+998') || 
+                                  phoneNumber.startsWith('998') ||
+                                  true; // Пока все считаем гражданами Узбекистана
+            
+            if (isUzbekCitizen) {
+              await VpsApiService.saveUserSensitiveData(
+                userId: phoneId,
+                phoneNumber: phoneNumber,
+                isUzbekCitizen: true,
+              );
+              print('✅ Чувствительные данные сохранены на VPS');
+            }
+          } catch (e) {
+            print('⚠️ Не удалось сохранить данные на VPS: $e');
+          }
+          
+          try {
+            // Создаем пользователя в Firestore без чувствительных данных
+            final firebaseUser = user.copyWith(location: null);
+            await FirestoreService.createUser(firebaseUser);
+            print('✅ Новый пользователь создан в Firestore: $phoneId');
           } catch (e) {
             print('⚠️ Не удалось создать пользователя в Firestore: $e');
             // Продолжаем с локальными данными
@@ -227,30 +221,19 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
           throw Exception('Пользователь с таким номером не найден. Пожалуйста, создайте аккаунт.');
         }
       } else {
-        // Пользователь найден, убеждаемся что ID правильный и обновляем
-        if (user.id != firebaseUid) {
-          print('⚠️ ID пользователя ($user.id) не совпадает с Firebase UID ($firebaseUid). Обновляем.');
-          user = user.copyWith(id: firebaseUid);
-        }
+        // Пользователь найден, обновляем статус верификации
         user = user.copyWith(
-          id: firebaseUid, // Убеждаемся, что ID правильный
           isVerified: true,
           updatedAt: DateTime.now(),
         );
         user = _withNotificationDefaults(user);
         
         try {
-          // Пытаемся создать, если не существует, иначе обновить
-          try {
-            await FirestoreService.createUser(user);
-            print('✅ Пользователь создан в Firestore: $firebaseUid');
-          } catch (createError) {
-            // Если уже существует, обновляем
-            await FirestoreService.updateUser(user);
-            print('✅ Пользователь обновлен в Firestore: $firebaseUid');
-          }
+          // Обновляем пользователя в Firestore
+          await FirestoreService.updateUser(user);
+          print('✅ Пользователь обновлен в Firestore: ${user.id}');
         } catch (e) {
-          print('⚠️ Не удалось сохранить пользователя в Firestore: $e');
+          print('⚠️ Не удалось обновить пользователя в Firestore: $e');
           // Продолжаем с локальными данными
         }
       }
@@ -406,6 +389,8 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
     String? category,
     String? description,
     double? pricePerHour,
+    String? address,
+    Map<String, double>? location, // {lat, lng}
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -427,6 +412,17 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
 
       // Создаем нового пользователя (без Firebase Auth)
       final now = DateTime.now();
+      
+      // Формируем location для Firestore
+      Map<String, dynamic>? locationData;
+      if (location != null) {
+        locationData = {
+          'lat': location['lat'],
+          'lng': location['lng'],
+          'address': address,
+        };
+      }
+      
       final newUser = _withNotificationDefaults(FirestoreUser(
         id: phoneNumber, // Используем номер телефона как ID
         phoneNumber: phoneNumber,
@@ -436,6 +432,7 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
         category: category,
         description: description,
         pricePerHour: pricePerHour,
+        location: locationData,
         deviceTokens: const [],
         notificationPreferences: const {
           'push': true,
@@ -449,9 +446,42 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
         totalOrders: userType == 'specialist' ? 0 : null,
       ));
 
-      // Пытаемся сохранить в Firestore
+      // Сохраняем чувствительные данные на VPS (Узбекистан)
       try {
-        await FirestoreService.createUser(newUser);
+        // Определяем, является ли пользователь гражданином Узбекистана
+        final isUzbekCitizen = phoneNumber.startsWith('+998') || 
+                              phoneNumber.startsWith('998') ||
+                              true; // Пока все считаем гражданами Узбекистана
+        
+        if (isUzbekCitizen) {
+          // Сохраняем чувствительные данные на VPS
+          final vpsLocation = locationData != null ? {
+            'lat': locationData['lat'],
+            'lng': locationData['lng'],
+            'address': locationData['address'],
+          } : null;
+          
+          await VpsApiService.saveUserSensitiveData(
+            userId: phoneNumber,
+            phoneNumber: phoneNumber,
+            address: address,
+            location: vpsLocation,
+            isUzbekCitizen: true,
+          );
+          print('✅ Чувствительные данные сохранены на VPS (Узбекистан)');
+        }
+      } catch (e) {
+        print('⚠️ Не удалось сохранить данные на VPS: $e');
+        // Продолжаем работу, но данные не будут соответствовать требованиям
+      }
+      
+      // Пытаемся сохранить в Firestore (нечувствительные данные)
+      try {
+        // Создаем пользователя без чувствительных данных для Firebase
+        final firebaseUser = newUser.copyWith(
+          location: null, // Не храним локацию в Firebase
+        );
+        await FirestoreService.createUser(firebaseUser);
         print('✅ Пользователь сохранен в Firestore: ${newUser.name}');
       } catch (e) {
         print('⚠️ Не удалось сохранить в Firestore: $e');

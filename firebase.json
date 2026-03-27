@@ -1,4 +1,7 @@
 {
+  "database": {
+    "rules": "database.rules.json"
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
@@ -11,6 +14,7 @@
     "runtime": "nodejs20"
   },
   "hosting": {
+    "site": "odo-business-hub",
     "public": "build/web",
     "ignore": [
       "firebase.json",

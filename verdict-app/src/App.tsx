@@ -8,10 +8,9 @@ import { AskPeopleScreen } from '@/screens/AskPeopleScreen';
 import { PeopleCreateScreen } from '@/screens/PeopleCreateScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
-import { SearchScreen } from '@/screens/SearchScreen';
-import { RankingScreen } from '@/screens/RankingScreen';
-import { FriendsScreen } from '@/screens/FriendsScreen';
+import { KnowYourselfScreen } from '@/screens/KnowYourselfScreen';
 import { useUser } from '@/context/UserContext';
+import { SearchWithTabs } from '@/components/SearchWithTabs';
 import type { VerdictCard } from '@/types/card';
 
 export function App() {
@@ -23,10 +22,28 @@ export function App() {
   const [peopleCreateMode, setPeopleCreateMode] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchMode, setSearchMode] = useState<'play' | 'advisor'>('play');
+  const [showProfile, setShowProfile] = useState(false);
   const [searchSelectedCard, setSearchSelectedCard] = useState<VerdictCard | null>(null);
 
   useEffect(() => {
     initTelegramWebApp();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cardId = params.get('card');
+    if (cardId) {
+      import('@/services/cards-service').then(({ getCardById }) => {
+        getCardById(cardId).then((card) => {
+          if (card) {
+            setSearchSelectedCard(card);
+            setFlowSubsection(null);
+            setChampionMode(null);
+          }
+        });
+      });
+    }
   }, []);
 
   const showAskPeopleForm = flowSubsection === 'askPeople' && askPeopleCreateMode;
@@ -61,11 +78,13 @@ export function App() {
     setSearchSelectedCard(null);
   };
 
-  const requestOnboarding = () => setShowOnboarding(true);
+  const handleVoteCount = (count: number) => {
+    if (count >= 3 && !isOnboarded) setShowOnboarding(true);
+  };
 
   if (showOnboarding) {
     return (
-      <MainLayout activeTab={activeTab} onTabChange={handleTabChange}>
+      <MainLayout activeTab={activeTab} onTabChange={handleTabChange} onSearchClick={() => setShowSearch(true)} onProfileClick={() => setShowProfile(true)}>
         <OnboardingScreen
           onComplete={() => setShowOnboarding(false)}
           onSkip={() => setShowOnboarding(false)}
@@ -75,17 +94,28 @@ export function App() {
   }
 
   if (showSearch) {
+    const handleSelectCard = (card: VerdictCard) => {
+      setSearchSelectedCard(card);
+      setShowSearch(false);
+      setFlowSubsection(null);
+      setChampionMode(null);
+    };
     return (
-      <MainLayout activeTab={activeTab} onTabChange={handleTabChange}>
-        <SearchScreen
-          onSelectCard={(card) => {
-            setSearchSelectedCard(card);
-            setShowSearch(false);
-            setFlowSubsection(null);
-            setChampionMode(null);
-          }}
+      <MainLayout activeTab={activeTab} onTabChange={handleTabChange} onSearchClick={() => setShowSearch(true)} onProfileClick={() => { setShowSearch(false); setShowProfile(true); }}>
+        <SearchWithTabs
+          searchMode={searchMode}
+          onSearchModeChange={setSearchMode}
+          onSelectCard={handleSelectCard}
           onBack={() => setShowSearch(false)}
         />
+      </MainLayout>
+    );
+  }
+
+  if (showProfile) {
+    return (
+      <MainLayout activeTab={activeTab} onTabChange={handleTabChange} onSearchClick={() => setShowSearch(true)} onProfileClick={() => setShowProfile(true)}>
+        <ProfileScreen onBack={() => setShowProfile(false)} onOpenOnboarding={() => setShowOnboarding(true)} />
       </MainLayout>
     );
   }
@@ -95,6 +125,7 @@ export function App() {
       activeTab={activeTab}
       onTabChange={handleTabChange}
       onSearchClick={() => setShowSearch(true)}
+      onProfileClick={() => setShowProfile(true)}
     >
       {showAskPeopleForm ? (
         <AskPeopleScreen onCreated={() => setAskPeopleCreateMode(false)} onBack={goBack} />
@@ -106,18 +137,16 @@ export function App() {
           mode={championMode}
           onBack={goBack}
           initialCard={searchSelectedCard}
-          onFirstVote={!isOnboarded ? requestOnboarding : undefined}
+          onVoteCount={!isOnboarded ? handleVoteCount : undefined}
         />
       ) : activeTab === 'flow' ? (
         <FlowScreen onSelect={handleFlowSelect} onBack={() => {}} />
       ) : activeTab === 'champion' ? (
         <ChampionScreen onSelect={handleChampionSelect} onBack={() => {}} />
-      ) : activeTab === 'ranking' ? (
-        <RankingScreen />
-      ) : activeTab === 'profile' ? (
-        <ProfileScreen onOpenOnboarding={() => setShowOnboarding(true)} />
+      ) : activeTab === 'discover' ? (
+        <KnowYourselfScreen onSelect={(id) => { handleFlowSelect(id); }} onBack={() => {}} />
       ) : (
-        <FriendsScreen />
+        <FlowScreen onSelect={handleFlowSelect} onBack={() => {}} />
       )}
     </MainLayout>
   );

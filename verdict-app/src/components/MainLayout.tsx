@@ -1,88 +1,48 @@
-import { useState } from 'react';
 import { hapticFeedback } from '@/lib/telegram';
 import { useLocale } from '@/context/LocaleContext';
-import { useTheme } from '@/context/ThemeContext';
-import type { Locale } from '@/i18n/translations';
 
-export type TabId = 'flow' | 'champion' | 'ranking' | 'friends' | 'profile';
+export type TabId = 'flow' | 'champion' | 'discover';
 
 interface MainLayoutProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   children: React.ReactNode;
   onSearchClick?: () => void;
+  onProfileClick?: () => void;
 }
 
-const TABS: TabId[] = ['flow', 'champion', 'ranking', 'profile', 'friends'];
+const TABS: TabId[] = ['flow', 'champion', 'discover'];
 
-export function MainLayout({ activeTab, onTabChange, children, onSearchClick }: MainLayoutProps) {
-  const { t, locale, setLocale } = useLocale();
-  const { theme, toggleTheme } = useTheme();
-  const [showSettings, setShowSettings] = useState(false);
+export function MainLayout({ activeTab, onTabChange, children, onSearchClick, onProfileClick }: MainLayoutProps) {
+  const { t } = useLocale();
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col pt-[env(safe-area-inset-top)] transition-colors">
-      <header className="flex-shrink-0 px-4 py-3 border-b border-[var(--app-border)]">
-        <div className="flex items-center gap-3">
+    <div className="h-[100dvh] bg-[var(--app-bg)] text-[var(--app-text)] flex flex-col pt-[env(safe-area-inset-top)] transition-colors overflow-hidden">
+      <header className="flex-shrink-0 px-3 py-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               hapticFeedback('light');
               onSearchClick?.();
             }}
-            className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[var(--app-bg-secondary)] text-[var(--app-text-muted)] text-left"
+            className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--app-bg-secondary)] text-[var(--app-text-muted)] text-left min-w-0"
           >
-            <span>🔍</span>
-            <span className="text-sm">{t.searchPlaceholder}</span>
+            <span className="text-sm">🔍</span>
+            <span className="text-xs truncate">{t.searchPlaceholder}</span>
           </button>
-          <div className="relative">
-            <button
-              onClick={() => {
-                hapticFeedback('light');
-                setShowSettings(s => !s);
-              }}
-              className="p-2.5 rounded-xl bg-[var(--app-bg-secondary)] active:opacity-70"
-              aria-label="Settings"
-            >
-              <span className="text-xl">⚙️</span>
-            </button>
-            {showSettings && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowSettings(false)} />
-                <div className="absolute right-0 top-full mt-1 py-2 rounded-xl bg-[var(--app-bg-secondary)] border border-[var(--app-border)] shadow-xl z-20 min-w-[180px]">
-                  <div className="px-3 py-2 border-b border-[var(--app-border)]">
-                    <span className="text-xs text-[var(--app-text-muted)]">{t.language}</span>
-                    <div className="flex gap-1 mt-1">
-                      {(['en', 'ru', 'zh'] as Locale[]).map((l) => (
-                        <button
-                          key={l}
-                          onClick={() => {
-                            setLocale(l);
-                            hapticFeedback('light');
-                          }}
-                          className={`px-2 py-1 rounded text-sm ${locale === l ? 'bg-[var(--app-accent)] text-white' : 'text-[var(--app-text-muted)]'}`}
-                        >
-                          {l.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      toggleTheme();
-                      hapticFeedback('light');
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[var(--app-tab-active)]"
-                  >
-                    <span>{theme === 'dark' ? '🌙' : '☀️'}</span>
-                    <span>{theme === 'dark' ? t.themeDark : t.themeLight}</span>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            onClick={() => {
+              hapticFeedback('light');
+              onProfileClick?.();
+            }}
+            className="p-1.5 rounded-lg bg-[var(--app-bg-secondary)] active:opacity-70 flex-shrink-0"
+            aria-label="Profile"
+          >
+            <span className="text-lg">👤</span>
+          </button>
         </div>
 
-        <nav className="flex gap-1 mt-3">
+        <nav className="flex mt-2 border-b border-[var(--app-border)]">
           {TABS.map((tab) => (
             <button
               key={tab}
@@ -90,13 +50,12 @@ export function MainLayout({ activeTab, onTabChange, children, onSearchClick }: 
                 hapticFeedback('light');
                 onTabChange(tab);
               }}
-              className={`flex-1 py-2.5 px-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab
-                  ? 'bg-[var(--app-tab-active)] text-[var(--app-text)]'
-                  : 'text-[var(--app-text-muted)] hover:opacity-90 active:opacity-80'
-              }`}
+              className="flex-1 py-1.5 px-1 text-xs font-medium transition-colors min-w-0 relative text-[var(--app-text-muted)] hover:opacity-90 active:opacity-80"
             >
-              {t.tabs[tab]}
+              <span className="truncate block">{t.tabs[tab]}</span>
+              {activeTab === tab && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--app-accent)] rounded-full" />
+              )}
             </button>
           ))}
         </nav>

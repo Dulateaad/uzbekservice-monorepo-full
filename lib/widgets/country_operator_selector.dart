@@ -63,8 +63,12 @@ class _CountryOperatorSelectorState extends State<CountryOperatorSelector> {
                   child: Row(
                     children: [
                       Text(
-                        country.flag,
-                        style: const TextStyle(fontSize: 20),
+                        country.phoneCode,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -77,13 +81,6 @@ class _CountryOperatorSelectorState extends State<CountryOperatorSelector> {
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              country.phoneCode,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
                               ),
                             ),
                           ],

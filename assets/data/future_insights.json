@@ -1,0 +1,62 @@
+[
+  {
+    "id": "negotiation_empathy",
+    "category": "social_emotional",
+    "source": "Harvard Center on the Developing Child",
+    "title": "Переговоры и эмпатия",
+    "scientificFact": "Игры «serve-and-return» (взаимодействие глаза в глаза) строят нейронные связи для социального распознавания.",
+    "audienceText": "А вы знали? Эта игра сейчас развивает зеркальные нейроны. В будущем это превратится в мощную эмпатию и навык переговоров: ваш ребёнок будет чувствовать оппонента и находить решения там, где другие сдаются.",
+    "learnMoreUrl": "https://developingchild.harvard.edu/",
+    "ageBands": ["teen_school", "young_adult"]
+  },
+  {
+    "id": "motor_leadership",
+    "category": "motor",
+    "source": "UpToDate (клинические обзоры развития)",
+    "title": "Лидерство и моторика",
+    "scientificFact": "Освоение мелких точных движений (пинцетный захват) связано с развитием когнитивного контроля.",
+    "audienceText": "А вы знали? Когда ребёнок учится захватывать мелкие детали в этой игре, он тренирует когнитивную выносливость. Это база для будущего лидерства: умение концентрироваться на деталях и доводить сложные задачи до конца.",
+    "learnMoreUrl": "https://www.uptodate.com/",
+    "ageBands": ["teen_school", "young_adult"]
+  },
+  {
+    "id": "stress_resilience",
+    "category": "stress",
+    "source": "Harvard Center on the Developing Child",
+    "title": "Стрессоустойчивость",
+    "scientificFact": "Безопасная привязанность и поддержка взрослого помогают снижать вредное воздействие длительного стресса на развивающийся мозг.",
+    "audienceText": "А вы знали? Ваша поддержка в сложной для малыша задаче сейчас строит его «биологический щит». В будущем это даёт основу для стрессоустойчивости: сохранять ясность в кризисных ситуациях.",
+    "learnMoreUrl": "https://developingchild.harvard.edu/",
+    "ageBands": ["teen_school", "young_adult"]
+  },
+  {
+    "id": "negotiation_empathy_parent",
+    "category": "social_emotional",
+    "source": "Harvard Center on the Developing Child",
+    "title": "Переговоры и эмпатия",
+    "scientificFact": "Игры «serve-and-return» (взаимодействие глаза в глаза) строят нейронные связи для социального распознавания.",
+    "audienceText": "А вы знали? Эта игра сейчас развивает зеркальные нейроны. В будущем это превратится в мощную эмпатию и навык переговоров: ваш ребёнок будет чувствовать оппонента и находить решения там, где другие сдаются.",
+    "learnMoreUrl": "https://developingchild.harvard.edu/",
+    "ageBands": ["parent_0_5"]
+  },
+  {
+    "id": "motor_leadership_parent",
+    "category": "motor",
+    "source": "UpToDate (клинические обзоры развития)",
+    "title": "Лидерство и моторика",
+    "scientificFact": "Освоение мелких точных движений (пинцетный захват) напрямую связано с развитием когнитивного контроля.",
+    "audienceText": "А вы знали? Когда ребёнок учится захватывать мелкие детали в этой игре, он тренирует когнитивную выносливость. Это база для будущего лидерства: умение концентрироваться на деталях и доводить сложные задачи до конца, когда все вокруг теряют фокус.",
+    "learnMoreUrl": "https://www.uptodate.com/",
+    "ageBands": ["parent_0_5"]
+  },
+  {
+    "id": "stress_resilience_parent",
+    "category": "stress",
+    "source": "Harvard Center on the Developing Child",
+    "title": "Стрессоустойчивость",
+    "scientificFact": "Безопасная привязанность и поддержка взрослого предотвращают переход обычного стресса в «токсичный».",
+    "audienceText": "А вы знали? Ваша поддержка в этой сложной для малыша задаче сейчас строит его «биологический щит». В будущем это даст ему невероятную стрессоустойчивость: он будет сохранять ясность ума в кризисных ситуациях, где другие паникуют.",
+    "learnMoreUrl": "https://developingchild.harvard.edu/",
+    "ageBands": ["parent_0_5"]
+  }
+]

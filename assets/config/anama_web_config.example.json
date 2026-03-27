@@ -1,0 +1,9 @@
+{
+  "apiKey": "FROM_FIREBASE_CONSOLE_WEB_APP",
+  "appId": "1:xxxx:web:xxxx",
+  "messagingSenderId": "000000000000",
+  "projectId": "anama-app",
+  "authDomain": "anama-app.firebaseapp.com",
+  "storageBucket": "anama-app.firebasestorage.app",
+  "databaseURL": "https://anama-app-default-rtdb.firebaseio.com"
+}

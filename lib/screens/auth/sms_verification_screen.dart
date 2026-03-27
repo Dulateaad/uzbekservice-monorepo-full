@@ -11,11 +11,19 @@ import '../../widgets/odo_logo.dart';
 class SmsVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
   final String? verificationId;
+  final String? name;
+  final String? userType;
+  final List<String>? intents; // Намерения пользователя
+  final Map<String, String>? answers; // Ответы на вопросы
   
   const SmsVerificationScreen({
     super.key,
     required this.phoneNumber,
     this.verificationId,
+    this.name,
+    this.userType,
+    this.intents,
+    this.answers,
   });
 
   @override
@@ -86,50 +94,44 @@ class _SmsVerificationScreenState extends ConsumerState<SmsVerificationScreen> {
       // Получаем verificationId из widget или из провайдера
       final verificationId = widget.verificationId;
       
-      // Вызываем логин через FirestoreAuthProvider с verificationId
+      // Вызываем логин через FirestoreAuthProvider с verificationId и намерениями
       await ref.read(firestoreAuthProvider.notifier).login(
         phoneNumber, 
         _codeController.text,
         verificationId: verificationId,
+        registrationName: widget.name,
+        registrationUserType: widget.userType,
+        onboardingIntents: widget.intents,
       );
       
       if (mounted) {
         final authState = ref.read(firestoreAuthProvider);
         
         if (authState.isAuthenticated) {
-          // Проверяем, нужно ли создать профиль
-          final user = authState.user;
-          if (user != null && (user.name == 'Пользователь' || user.name.isEmpty)) {
-            // Новый пользователь - переходим к созданию профиля
-            context.go('/auth/create-profile');
-          } else {
-            // Пользователь с полным профилем - переходим на главную
-            // Скрываем reCAPTCHA перед переходом (для веб)
-            if (kIsWeb) {
-              _hideRecaptcha();
-            }
-            
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Успешная авторизация!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            context.go('/home');
+          // Успешный вход — сразу на главную (профиль можно редактировать в разделе «Профиль»)
+          if (kIsWeb) {
+            _hideRecaptcha();
           }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Успешная авторизация!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          context.go('/home');
         } else if (authState.error != null) {
-          // Проверяем тип ошибки
+          // Пользователь не найден — нужно создать аккаунт (переключиться на «Создать аккаунт»)
           if (authState.error!.contains('не найден')) {
-            // Пользователь не найден - переходим к созданию профиля
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Создайте профиль для завершения регистрации'),
+                content: Text('Пользователь не найден. Нажмите «Создать аккаунт» и введите имя.'),
                 backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
               ),
             );
-            context.go('/auth/create-profile');
+            context.go('/auth/phone');
           } else {
-            // Другие ошибки
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Ошибка: ${authState.error}'),
@@ -138,8 +140,7 @@ class _SmsVerificationScreenState extends ConsumerState<SmsVerificationScreen> {
             );
           }
         } else {
-          // Если пользователь не аутентифицирован, переходим к регистрации
-          context.go('/auth/specialist-registration');
+          context.go('/auth/phone');
         }
       }
     } catch (e) {
@@ -276,34 +277,13 @@ class _SmsVerificationScreenState extends ConsumerState<SmsVerificationScreen> {
                   textAlign: TextAlign.center,
                 ),
                 
-                const SizedBox(height: 16),
-                
-                // Подсказка о тестовом коде
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                  ),
-                  child: const Text(
-                    '💡 Для тестирования используйте код: 123456',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                
                 const SizedBox(height: 48),
                 
                 // Поле ввода кода
                 CustomTextField(
                   controller: _codeController,
                   labelText: 'Код подтверждения',
-                  hintText: '123456',
+                  hintText: 'Введите код',
                   keyboardType: TextInputType.number,
                   prefixIcon: const Icon(Icons.security),
                   validator: (value) {

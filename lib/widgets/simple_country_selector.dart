@@ -33,32 +33,22 @@ class SimpleCountrySelector extends StatelessWidget {
                   width: selectedCountryCode == 'UZ' ? 2 : 1,
                 ),
               ),
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     '🇺🇿',
-                    style: TextStyle(fontSize: 24),
+                    style: TextStyle(fontSize: 20),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Узбекистан',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selectedCountryCode == 'UZ' 
-                          ? FontWeight.w600 
-                          : FontWeight.w500,
-                      color: selectedCountryCode == 'UZ' 
-                          ? AppConstants.primaryColor
-                          : Colors.grey[700],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
+                  const SizedBox(width: 8),
                   Text(
                     '+998',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: selectedCountryCode == 'UZ' 
+                          ? AppConstants.primaryColor
+                          : Colors.grey[700],
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -88,32 +78,22 @@ class SimpleCountrySelector extends StatelessWidget {
                   width: selectedCountryCode == 'KZ' ? 2 : 1,
                 ),
               ),
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     '🇰🇿',
-                    style: TextStyle(fontSize: 24),
+                    style: TextStyle(fontSize: 20),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Казахстан',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selectedCountryCode == 'KZ' 
-                          ? FontWeight.w600 
-                          : FontWeight.w500,
-                      color: selectedCountryCode == 'KZ' 
-                          ? AppConstants.secondaryColor
-                          : Colors.grey[700],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
+                  const SizedBox(width: 8),
                   Text(
                     '+7',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: selectedCountryCode == 'KZ' 
+                          ? AppConstants.secondaryColor
+                          : Colors.grey[700],
                       fontFamily: 'monospace',
                     ),
                   ),

@@ -31,7 +31,7 @@ class _EnhancedSpecialistDetailScreenState extends ConsumerState<EnhancedSpecial
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() {
       setState(() {
         _currentTabIndex = _tabController.index;
@@ -461,6 +461,7 @@ class _EnhancedSpecialistDetailScreenState extends ConsumerState<EnhancedSpecial
           Tab(text: 'О специалисте'),
           Tab(text: 'Услуги'),
           Tab(text: 'Галерея'),
+          Tab(text: 'Инструменты'),
           Tab(text: 'Отзывы'),
         ],
       ),
@@ -477,6 +478,7 @@ class _EnhancedSpecialistDetailScreenState extends ConsumerState<EnhancedSpecial
           _buildAboutTab(),
           _buildServicesTab(),
           _buildGalleryTab(),
+          _buildToolsTab(),
           _buildReviewsTab(),
         ],
       ),
@@ -695,6 +697,208 @@ class _EnhancedSpecialistDetailScreenState extends ConsumerState<EnhancedSpecial
     );
   }
 
+  Widget _buildToolsTab() {
+    final toolsState = ref.watch(toolsProvider);
+    final specialistId = widget.specialistId;
+
+    // Ленивая загрузка инструментов, если ещё не загружены
+    if (!toolsState.isLoading &&
+        toolsState.rentTools.isEmpty &&
+        toolsState.saleTools.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(toolsProvider.notifier).loadToolsForSpecialist(specialistId);
+      });
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppConstants.spacingLG),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Инструменты и товары мастера',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Мастер может сдавать инструменты в аренду или продавать товары. '
+            'Вы можете обсудить условия в чате.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppConstants.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 16),
+          if (toolsState.isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else ...[
+            _buildPublicToolsSection(
+              title: 'Инструменты в аренду',
+              emptyText:
+                  'Пока нет инструментов в аренду. Мастер может добавить их в своём профиле.',
+              items: toolsState.rentTools,
+            ),
+            const SizedBox(height: 16),
+            _buildPublicToolsSection(
+              title: 'Товары мастера',
+              emptyText:
+                  'Пока нет товаров. Мастер может добавить свои товары в своём профиле.',
+              items: toolsState.saleTools,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPublicToolsSection({
+    required String title,
+    required String emptyText,
+    required List<FirestoreToolItem> items,
+  }) {
+    if (items.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppConstants.surfaceColor,
+          borderRadius: BorderRadius.circular(AppConstants.radiusLG),
+          border: Border.all(color: AppConstants.borderColor.withOpacity(0.6)),
+        ),
+        child: Text(
+          emptyText,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppConstants.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 190,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return GestureDetector(
+                onTap: () {
+                  context.go('/home/tool-detail', extra: item);
+                },
+                child: _buildPublicToolCard(item),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPublicToolCard(FirestoreToolItem item) {
+    final isRent = item.type == 'rent';
+    final priceLabel = isRent
+        ? '${item.price.toStringAsFixed(0)} сум / ${item.priceUnit ?? 'день'}'
+        : '${item.price.toStringAsFixed(0)} сум';
+
+    return Container(
+      width: 200,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppConstants.borderColor.withOpacity(0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 90,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: item.imageUrls.isNotEmpty
+                ? ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Image.network(
+                      item.imageUrls.first,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Icon(
+                    isRent ? Icons.construction : Icons.shopping_bag_outlined,
+                    color: AppConstants.primaryColor,
+                    size: 32,
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppConstants.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  priceLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppConstants.primaryColor,
+                  ),
+                ),
+                if (isRent && item.deposit != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Залог: ${item.deposit!.toStringAsFixed(0)} сум',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppConstants.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildReviewsTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConstants.spacingLG),
@@ -788,12 +992,30 @@ class _EnhancedSpecialistDetailScreenState extends ConsumerState<EnhancedSpecial
         child: Row(
           children: [
             Expanded(
-              child: DesignSystemButton(
-                text: 'Написать',
+              child: OutlinedButton(
                 onPressed: () {
                   // TODO: Открыть чат
                 },
-                type: ButtonType.secondary,
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: AppConstants.surfaceColor,
+                  foregroundColor: AppConstants.primaryColor,
+                  side: BorderSide(
+                    color: AppConstants.primaryColor,
+                    width: 2,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.radiusLG),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                ),
+                child: Text(
+                  'Написать',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: AppConstants.fontFamily,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),

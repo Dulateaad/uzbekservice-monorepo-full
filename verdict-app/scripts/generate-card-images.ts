@@ -1,5 +1,6 @@
 /**
- * Генерация изображений для карточек через Vertex AI (Imagen).
+ * @deprecated Для продакшена используйте объекты + бесплатные источники (см. IMAGES_SOURCES.md, seed:objects).
+ * Генерация через Vertex AI (Imagen) — платно, требует GCP биллинг.
  * Заполняет imageA/imageB для карточек в Firestore и загружает файлы в Storage.
  *
  * Требования:
@@ -74,10 +75,25 @@ const PROMPT_OVERRIDES: Record<string, string> = {
 
 const CARD_PROMPT = (option: string) => {
   const promptText = PROMPT_OVERRIDES[option] ?? option;
-  return `High quality, professional, sharp, detailed illustration. Subject: ${promptText}. Square 1:1 format, full frame, complete image not cropped. Clean minimal background. Absolutely NO text, NO labels, NO words, NO letters, NO writing in the image. Modern flat design, stylish, photorealistic when applicable.`;
+  return `Professional illustration that visually represents the concept: "${promptText}". Square 1:1 format. The subject must fill the entire frame from edge to edge — full-bleed, no empty margins, no cropping, composition occupies the whole card. Centered, complete image. Clean minimal background. CRITICAL: Absolutely NO text, NO labels, NO words, NO letters, NO writing, NO captions, NO watermarks anywhere in the image. Sharp, detailed, modern flat design, stylish.`;
 };
 
 const DELAY_BETWEEN_REQUESTS_MS = 4000; // Imagen quota ~20/min — пауза 4 сек
+
+const MIN_IMAGE_SIZE = 800;
+
+function getPngDimensions(buffer: Buffer): { width: number; height: number } | null {
+  if (buffer.length < 24) return null;
+  if (buffer[0] !== 0x89 || buffer[1] !== 0x50) return null;
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+function validateImageBuffer(buffer: Buffer): { valid: boolean; width?: number; height?: number } {
+  const dims = getPngDimensions(buffer);
+  if (!dims) return { valid: false };
+  const valid = dims.width >= MIN_IMAGE_SIZE && dims.height >= MIN_IMAGE_SIZE;
+  return { valid, width: dims.width, height: dims.height };
+}
 
 async function generateImage(optionText: string, retries = 3): Promise<Buffer> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -152,17 +168,27 @@ async function main() {
       if (!imageA) {
         console.log(`  [${id}] Generating image for A: ${optionA}`);
         const buf = await generateImage(optionA);
-        imageA = await uploadToStorage(buf, `${STORAGE_PREFIX}/${id}-A.png`);
-        updated = true;
-        generated++;
+        const checkA = validateImageBuffer(buf);
+        if (!checkA.valid) {
+          console.warn(`  [${id}] Image A ${checkA.width ?? '?'}×${checkA.height ?? '?'}px — минимум ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE}, пропуск`);
+        } else {
+          imageA = await uploadToStorage(buf, `${STORAGE_PREFIX}/${id}-A.png`);
+          updated = true;
+          generated++;
+        }
         await new Promise((r) => setTimeout(r, DELAY_BETWEEN_REQUESTS_MS));
       }
       if (!imageB) {
         console.log(`  [${id}] Generating image for B: ${optionB}`);
         const buf = await generateImage(optionB);
-        imageB = await uploadToStorage(buf, `${STORAGE_PREFIX}/${id}-B.png`);
-        updated = true;
-        generated++;
+        const checkB = validateImageBuffer(buf);
+        if (!checkB.valid) {
+          console.warn(`  [${id}] Image B ${checkB.width ?? '?'}×${checkB.height ?? '?'}px — минимум ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE}, пропуск`);
+        } else {
+          imageB = await uploadToStorage(buf, `${STORAGE_PREFIX}/${id}-B.png`);
+          updated = true;
+          generated++;
+        }
         await new Promise((r) => setTimeout(r, DELAY_BETWEEN_REQUESTS_MS));
       }
 

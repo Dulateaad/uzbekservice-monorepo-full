@@ -9,29 +9,36 @@
     "preview": "vite preview",
     "seed": "tsx scripts/seed-cards.ts",
     "seed:admin": "tsx scripts/seed-cards-admin.ts",
+    "seed:objects": "tsx scripts/seed-objects-admin.ts",
+    "seed:objects:replace": "tsx scripts/seed-objects-admin.ts --replace",
     "seed:missing": "tsx scripts/seed-missing-categories.ts",
+    "generate:cards": "tsx scripts/generate-cards-gemini.ts",
     "generate:images": "tsx scripts/generate-card-images.ts",
     "generate:images:force": "tsx scripts/generate-card-images.ts --force",
-    "deploy": "npm run build && firebase deploy --project verdict-c5e0d",
+    "deploy": "npm run build && firebase deploy --only firestore,hosting --project verdict-c5e0d",
+    "deploy:all": "npm run build && firebase deploy --project verdict-c5e0d",
     "deploy:firestore": "firebase deploy --only firestore --project verdict-c5e0d",
-    "deploy:hosting": "firebase deploy --only hosting --project verdict-c5e0d"
+    "deploy:hosting": "firebase deploy --only hosting --project verdict-c5e0d",
+    "mirror:images": "tsx scripts/mirror-images-to-storage.ts",
+    "deploy:storage": "firebase deploy --only storage --project verdict-c5e0d"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "firebase": "^11.0.0",
-    "firebase-admin": "^13.0.0"
+    "firebase-admin": "^13.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.16",
+    "dotenv": "^17.3.1",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.3.0",
     "tsx": "^4.19.0",
+    "typescript": "^5.3.0",
     "vite": "^5.0.0"
   }
 }

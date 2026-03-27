@@ -6,7 +6,7 @@ const SAVED_CARDS_KEY = 'verdict_saved_cards';
 const ASK_PEOPLE_COUNT_KEY = 'verdict_ask_people';
 
 export type Gender = 'male' | 'female';
-export type AgeGroup = 'under18' | '18-25' | '26-35' | '35+';
+export type AgeGroup = 'under18' | '18-24' | '25-34' | '35-44' | '45-59' | '60+';
 
 export interface UserProfile {
   userId: string;
@@ -112,7 +112,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const askPeopleCountThisMonth = askPeopleCount[getMonthKey()] ?? 0;
   const canAskPeople = user?.isPremium || askPeopleCountThisMonth < ASK_PEOPLE_FREE_LIMIT;
 
-  const isOnboarded = !!(user?.gender && user?.ageGroup && user?.country && user?.city);
+  const isOnboarded = !!(user?.gender && user?.ageGroup && user?.country);
 
   const refreshUser = useCallback(() => {
     loadFromStorage();

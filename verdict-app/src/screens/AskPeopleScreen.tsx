@@ -8,6 +8,7 @@ import { useLocale } from '@/context/LocaleContext';
 import { useUser } from '@/context/UserContext';
 import { createCard } from '@/services/cards-service';
 import { validateCard } from '@/data/forbidden-content';
+import { VoiceInput } from '@/components/VoiceInput';
 
 interface AskPeopleScreenProps {
   onCreated: () => void;
@@ -71,24 +72,30 @@ export function AskPeopleScreen({ onCreated, onBack }: AskPeopleScreenProps) {
       <div className="space-y-4 mb-6">
         <div>
           <label className="block text-sm text-[var(--app-text-muted)] mb-1">{t.createOptionA}</label>
-          <input
-            type="text"
-            value={optionA}
-            onChange={(e) => setOptionA(e.target.value)}
-            placeholder="e.g. Quit"
-            className="w-full px-4 py-3 rounded-xl bg-[var(--app-bg-secondary)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={optionA}
+              onChange={(e) => setOptionA(e.target.value)}
+              placeholder="e.g. Quit"
+              className="flex-1 px-4 py-3 rounded-xl bg-[var(--app-bg-secondary)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]"
+            />
+            <VoiceInput onResult={setOptionA} />
+          </div>
         </div>
         <div className="text-center text-[var(--app-text-muted)]">vs</div>
         <div>
           <label className="block text-sm text-[var(--app-text-muted)] mb-1">{t.createOptionB}</label>
-          <input
-            type="text"
-            value={optionB}
-            onChange={(e) => setOptionB(e.target.value)}
-            placeholder="e.g. Stay"
-            className="w-full px-4 py-3 rounded-xl bg-[var(--app-bg-secondary)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={optionB}
+              onChange={(e) => setOptionB(e.target.value)}
+              placeholder="e.g. Stay"
+              className="flex-1 px-4 py-3 rounded-xl bg-[var(--app-bg-secondary)] border border-[var(--app-border)] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)]"
+            />
+            <VoiceInput onResult={setOptionB} />
+          </div>
         </div>
       </div>
 

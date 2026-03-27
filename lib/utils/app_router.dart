@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/firestore_models.dart';
+import '../models/business_hub/operation.dart';
 import '../providers/firestore_auth_provider.dart';
 import '../config/firebase_config.dart';
 import '../screens/splash_screen.dart';
@@ -15,6 +16,8 @@ import '../screens/auth/create_profile_screen.dart';
 import '../screens/auth/oneid_auth_screen.dart';
 import '../screens/auth/specialist_registration_screen.dart';
 import '../screens/auth/specialist_oneid_login_screen.dart';
+import '../screens/auth/onboarding_intent_screen.dart';
+import '../screens/auth/intent_selection_screen.dart';
 import '../screens/main/main_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/home/new_client_home_screen.dart';
@@ -30,6 +33,7 @@ import '../screens/booking/success_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/maps/maps_screen.dart';
+import '../screens/maps/find_nearby_screen.dart';
 import '../screens/orders/orders_screen.dart';
 import '../screens/specialist/specialist_list_screen.dart';
 import '../screens/specialist/specialist_detail_screen.dart';
@@ -50,23 +54,43 @@ import '../screens/legal/privacy_policy_screen.dart';
 import '../screens/legal/terms_of_service_screen.dart';
 import '../screens/tools/tool_detail_screen.dart';
 import '../screens/services/services_screen.dart';
-import '../screens/services/odo_vacancy_webview_screen.dart';
-import '../screens/services/business_hub_webview_screen.dart';
+import '../screens/business_hub/bh_main_screen.dart';
+import '../screens/business_hub/onboarding/bh_onboarding_screen.dart';
+import '../screens/business_hub/operations/bh_operations_list_screen.dart';
+import '../screens/business_hub/operations/bh_operation_form_screen.dart';
+import '../screens/business_hub/counterparties/bh_counterparties_screen.dart';
+import '../screens/business_hub/reports/bh_reports_screen.dart';
+import '../screens/business_hub/ocr/bh_ocr_scan_screen.dart';
+import '../screens/business_hub/tax/bh_tax_screen.dart';
+import '../screens/business_hub/hr/bh_hr_screen.dart';
+import '../screens/business_hub/members/bh_members_screen.dart';
+import '../screens/business_hub/import/bh_import_screen.dart';
+import '../screens/business_hub/tasks/bh_tasks_screen.dart';
+import '../screens/business_hub/crm/bh_crm_screen.dart';
+import '../screens/business_hub/crm/bh_crm_extras_screens.dart';
+import '../screens/business_hub/crm/bh_lead_detail_screen.dart';
+import '../screens/business_hub/crm/bh_deal_detail_screen.dart';
+import '../models/business_hub/lead.dart';
+import '../models/business_hub/deal.dart';
+import '../screens/business_hub/work/bh_works_screen.dart';
 import '../screens/vacancy/vacancy_list_screen.dart';
 import '../screens/vacancy/vacancy_detail_screen.dart';
+import '../screens/vacancy/create_vacancy_screen.dart';
+import '../screens/vacancy/company_dashboard_screen.dart';
+import '../screens/vacancy/my_applications_screen.dart';
+import '../screens/service_ads/my_service_ads_screen.dart';
+import '../screens/service_ads/create_service_ad_screen.dart';
+import '../services/analytics_service.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/intent-selection',
+    observers: [AnalyticsService.observer],
     redirect: (context, state) {
       final container = ProviderScope.containerOf(context);
       final authState = container.read(firestoreAuthProvider);
       
-      // Также проверяем Firebase Auth напрямую
-      final firebaseUser = FirebaseConfig.auth.currentUser;
-      final isFirebaseAuthenticated = firebaseUser != null;
-      
-      print('Redirect check: path=${state.uri.path}, firestoreAuth=${authState.isAuthenticated}, firebaseAuth=$isFirebaseAuthenticated, isLoading=${authState.isLoading}');
+      print('Redirect check: path=${state.uri.path}, firestoreAuth=${authState.isAuthenticated}, isLoading=${authState.isLoading}');
       
       // Не редиректим пока идет загрузка
       if (authState.isLoading) {
@@ -74,24 +98,34 @@ class AppRouter {
         return null;
       }
       
-      // Используем комбинированную проверку: или Firestore провайдер, или Firebase Auth
-      final isAuthenticated = authState.isAuthenticated || isFirebaseAuthenticated;
+      // Используем только Firestore Auth (Firebase Auth удален)
+      final isAuthenticated = authState.isAuthenticated;
       
       // Если пользователь не аутентифицирован и не на экранах аутентификации или онбординга
+      // Исключаем публичные маршруты: vacancy (список вакансий доступен всем)
       if (!isAuthenticated && 
           !state.uri.path.startsWith('/auth') && 
           state.uri.path != '/splash' &&
-          state.uri.path != '/onboarding') {
-        print('Redirecting to /auth/phone - user not authenticated');
-        return '/auth/phone';
+          state.uri.path != '/onboarding' &&
+          state.uri.path != '/intent-selection' &&
+          !state.uri.path.startsWith('/vacancy')) {
+        print('Redirecting to /intent-selection - user not authenticated');
+        return '/intent-selection';
       }
       
-      // Если пользователь аутентифицирован, но на экране создания профиля - разрешаем
+      // Аутентифицированный пользователь на create-profile — всегда на главную
+      // (профиль уже есть в Firestore, редактирование в разделе «Профиль»)
       if (isAuthenticated && state.uri.path == '/auth/create-profile') {
+        print('Redirecting to /home - authenticated user, skip create-profile');
+        return '/home';
+      }
+      
+      // Разрешаем доступ к экранам аутентификации для неаутентифицированных пользователей
+      if (!isAuthenticated && state.uri.path.startsWith('/auth')) {
         return null;
       }
       
-      // Если пользователь аутентифицирован и на экране аутентификации (кроме /auth/sms для завершения верификации)
+      // Если пользователь полностью аутентифицирован и на экране аутентификации (кроме /auth/sms для завершения верификации)
       if (isAuthenticated && state.uri.path.startsWith('/auth') && state.uri.path != '/auth/sms') {
         print('Redirecting to /home - user authenticated but on auth screen');
         return '/home';
@@ -106,6 +140,12 @@ class AppRouter {
         builder: (context, state) => const onboarding.SplashScreen(),
       ),
       
+      // Intent Selection (новый первый экран)
+      GoRoute(
+        path: '/intent-selection',
+        builder: (context, state) => const IntentSelectionScreen(),
+      ),
+      
       // Onboarding
       GoRoute(
         path: '/onboarding',
@@ -115,7 +155,26 @@ class AppRouter {
       // Auth Routes
       GoRoute(
         path: '/auth/phone',
-        builder: (context, state) => const BeautifulLoginScreen(),
+        builder: (context, state) {
+          // Получаем intent из extra
+          final extra = state.extra as Map<String, dynamic>?;
+          return BeautifulLoginScreen(
+            intentId: extra?['intent'] as String?,
+            role: extra?['role'] as String?,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/auth/onboarding-intent',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return OnboardingIntentScreen(
+            userType: extra?['userType'] ?? 'client',
+            phoneNumber: extra?['phoneNumber'] ?? '',
+            name: extra?['name'],
+            isRegistration: extra?['isRegistration'] ?? false,
+          );
+        },
       ),
       GoRoute(
         path: '/auth/sms',
@@ -123,11 +182,23 @@ class AppRouter {
           // Поддерживаем как старый формат (String), так и новый (Map)
           String phoneNumber = '';
           String? verificationId;
+          String? name;
+          String? userType;
+          List<String>? intents;
+          Map<String, String>? answers;
           
           if (state.extra is Map) {
             final extra = state.extra as Map<String, dynamic>;
             phoneNumber = extra['phoneNumber'] as String? ?? '';
             verificationId = extra['verificationId'] as String?;
+            name = extra['name'] as String?;
+            userType = extra['userType'] as String?;
+            intents = extra['intents'] != null 
+                ? List<String>.from(extra['intents']) 
+                : null;
+            answers = extra['answers'] != null
+                ? Map<String, String>.from(extra['answers'])
+                : null;
           } else if (state.extra is String) {
             phoneNumber = state.extra as String;
           }
@@ -135,6 +206,10 @@ class AppRouter {
           return SmsVerificationScreen(
             phoneNumber: phoneNumber,
             verificationId: verificationId,
+            name: name,
+            userType: userType,
+            intents: intents,
+            answers: answers,
           );
         },
       ),
@@ -169,6 +244,29 @@ class AppRouter {
       GoRoute(
         path: '/auth/specialist-oneid-login',
         builder: (context, state) => const SpecialistOneIdLoginScreen(),
+      ),
+      
+      // Vacancy routes (публичные, доступны без авторизации)
+      GoRoute(
+        path: '/vacancy',
+        builder: (context, state) => const VacancyListScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return VacancyDetailScreen(vacancyId: id);
+            },
+          ),
+          GoRoute(
+            path: 'create',
+            builder: (context, state) => const CreateVacancyScreen(),
+          ),
+          GoRoute(
+            path: 'applications',
+            builder: (context, state) => const MyApplicationsScreen(),
+          ),
+        ],
       ),
       
       // Main App Routes
@@ -275,6 +373,16 @@ class AppRouter {
             builder: (context, state) => const OrdersScreen(),
           ),
 
+          // Maps
+          GoRoute(
+            path: 'maps',
+            builder: (context, state) => const MapsScreen(),
+          ),
+          GoRoute(
+            path: 'maps/find-nearby',
+            builder: (context, state) => const FindNearbyScreen(),
+          ),
+          
           // Chats
           GoRoute(
             path: 'chats',
@@ -294,7 +402,108 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: 'business-hub',
-                builder: (context, state) => const BusinessHubWebViewScreen(),
+                builder: (context, state) => const BHMainScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'onboarding',
+                    builder: (context, state) => const BHOnboardingScreen(),
+                  ),
+                  GoRoute(
+                    path: 'operations',
+                    builder: (context, state) => const BHOperationsListScreen(),
+                  ),
+                  GoRoute(
+                    path: 'operation/new',
+                    builder: (context, state) => const BHOperationFormScreen(),
+                  ),
+                  GoRoute(
+                    path: 'operation/:id',
+                    builder: (context, state) {
+                      final op = state.extra as BHOperation?;
+                      return BHOperationFormScreen(existing: op);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'counterparties',
+                    builder: (context, state) => const BHCounterpartiesScreen(),
+                  ),
+                  GoRoute(
+                    path: 'reports',
+                    builder: (context, state) => const BHReportsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'ocr-scan',
+                    builder: (context, state) => const BHOcrScanScreen(),
+                  ),
+                  GoRoute(
+                    path: 'tax',
+                    builder: (context, state) => const BHTaxScreen(),
+                  ),
+                  GoRoute(
+                    path: 'hr',
+                    builder: (context, state) => const BHHRScreen(),
+                  ),
+                  GoRoute(
+                    path: 'members',
+                    builder: (context, state) => const BHMembersScreen(),
+                  ),
+                  GoRoute(
+                    path: 'import',
+                    builder: (context, state) => const BHImportScreen(),
+                  ),
+                  GoRoute(
+                    path: 'tasks',
+                    builder: (context, state) => const BHTasksScreen(),
+                  ),
+                  GoRoute(
+                    path: 'crm',
+                    builder: (context, state) => const BHCRMScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'companies',
+                        builder: (context, state) => const BHCrmCompaniesScreen(),
+                      ),
+                      GoRoute(
+                        path: 'contacts',
+                        builder: (context, state) => const BHCrmContactsScreen(),
+                      ),
+                      GoRoute(
+                        path: 'products',
+                        builder: (context, state) => const BHCrmProductsScreen(),
+                      ),
+                      GoRoute(
+                        path: 'subscriptions',
+                        builder: (context, state) => const BHCrmSubscriptionsScreen(),
+                      ),
+                      GoRoute(
+                        path: 'notifications',
+                        builder: (context, state) => const BHCrmNotificationsScreen(),
+                      ),
+                      GoRoute(
+                        path: 'pipelines',
+                        builder: (context, state) => const BHCrmPipelinesScreen(),
+                      ),
+                      GoRoute(
+                        path: 'lead/:id',
+                        builder: (context, state) {
+                          final lead = state.extra as BHLead;
+                          return BHLeadDetailScreen(lead: lead);
+                        },
+                      ),
+                      GoRoute(
+                        path: 'deal/:id',
+                        builder: (context, state) {
+                          final deal = state.extra as BHDeal;
+                          return BHDealDetailScreen(deal: deal);
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'works',
+                    builder: (context, state) => const BHWorksScreen(),
+                  ),
+                ],
               ),
               GoRoute(
                 path: 'odo-vacancy',
@@ -302,19 +511,10 @@ class AppRouter {
               ),
             ],
           ),
-          // Vacancy routes
+          // Company dashboard
           GoRoute(
-            path: 'vacancy',
-            builder: (context, state) => const VacancyListScreen(),
-            routes: [
-              GoRoute(
-                path: ':id',
-                builder: (context, state) {
-                  final id = state.pathParameters['id']!;
-                  return VacancyDetailScreen(vacancyId: id);
-                },
-              ),
-            ],
+            path: 'company/dashboard',
+            builder: (context, state) => const CompanyDashboardScreen(),
           ),
           // Tool / item detail
           GoRoute(
@@ -353,6 +553,19 @@ class AppRouter {
               GoRoute(
                 path: 'analytics-city-ratings',
                 builder: (context, state) => const CityRatingsScreen(),
+              ),
+              GoRoute(
+                path: 'service-ads',
+                builder: (context, state) => const MyServiceAdsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'create',
+                    builder: (context, state) {
+                      final ad = state.extra as ServiceAd?;
+                      return CreateServiceAdScreen(existingAd: ad);
+                    },
+                  ),
+                ],
               ),
             ],
           ),

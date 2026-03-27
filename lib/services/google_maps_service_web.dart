@@ -113,10 +113,15 @@ class GoogleMapsService {
     }
     
     try {
-      // Получаем контейнер для карты
+      // Получаем контейнер для карты (должен быть уже в DOM)
       final container = html.document.getElementById(containerId);
       if (container == null) {
-        throw Exception('Контейнер с id $containerId не найден');
+        throw Exception('Контейнер с id $containerId не найден в DOM');
+      }
+      
+      // Убеждаемся, что контейнер действительно является Element
+      if (container is! html.Element) {
+        throw Exception('Контейнер с id $containerId не является Element');
       }
 
       final google = js.context['google'];
@@ -152,7 +157,7 @@ class GoogleMapsService {
     }
   }
   
-  /// Добавление маркера на карту
+  /// Добавление маркера на карту (использует новый AdvancedMarkerElement)
   static dynamic addMarker({
     required dynamic map,
     required double lat,
@@ -175,22 +180,35 @@ class GoogleMapsService {
         throw Exception('Google Maps API недоступен');
       }
 
-      final markerConstructor = maps['Marker'];
-      if (markerConstructor == null) {
-        throw Exception('Marker constructor отсутствует');
+      // Используем обычные маркеры вместо AdvancedMarkerElement
+      // AdvancedMarkerElement требует Map ID, который нужно настроить в Google Cloud Console
+      // Обычные маркеры работают без дополнительной настройки
+      try {
+        final markerConstructor = maps['Marker'];
+        if (markerConstructor == null) {
+          print('⚠️ Marker constructor отсутствует, пропускаем добавление маркера');
+          return null;
+        }
+
+        final markerOptions = js.JsObject.jsify({
+          'position': {'lat': lat, 'lng': lng},
+          'map': map,
+          'title': title ?? '',
+          if (icon != null) 'icon': icon,
+        });
+
+        final marker = js.JsObject(markerConstructor, [markerOptions]);
+        if (marker != null) {
+          print('✅ Маркер добавлен: $lat, $lng');
+          return marker;
+        } else {
+          print('⚠️ Marker создан, но вернул null');
+          return null;
+        }
+      } catch (e) {
+        print('⚠️ Ошибка создания legacy Marker: $e');
+        return null;
       }
-
-      final markerOptions = js.JsObject.jsify({
-        'position': {'lat': lat, 'lng': lng},
-        'map': map,
-        'title': title ?? '',
-        'icon': icon,
-      });
-
-      final marker = js.JsObject(markerConstructor, [markerOptions]);
-
-      print('✅ Маркер добавлен: $lat, $lng');
-      return marker;
     } catch (e) {
       print('❌ Ошибка добавления маркера: $e');
       rethrow;
@@ -414,6 +432,6 @@ class GoogleMapsService {
   
   /// Функция для получения API ключа
   static String getGoogleMapsApiKey() {
-    return 'AIzaSyAomtM5KaHgrG95yTVN5Wirn46Qgq--yKY';
+    return 'AIzaSyBFHmNf-RhcwfdfBJyqm20eEuQaybgHMgc';
   }
 }

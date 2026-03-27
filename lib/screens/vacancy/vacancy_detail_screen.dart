@@ -5,6 +5,7 @@ import '../../constants/app_constants.dart';
 import '../../models/vacancy.dart';
 import '../../providers/vacancy_providers.dart';
 import '../../providers/firestore_auth_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 class VacancyDetailScreen extends ConsumerStatefulWidget {
   final String vacancyId;
@@ -45,6 +46,7 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
       _isApplying = true;
     });
 
+    final l10n = AppLocalizations.of(context)!;
     final service = ref.read(vacancyServiceProvider);
     final authState = ref.read(firestoreAuthProvider);
     final user = authState.user;
@@ -52,8 +54,8 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
     if (user == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Необходимо войти в систему'),
+          SnackBar(
+            content: Text(l10n.loginRequired),
             backgroundColor: Colors.red,
           ),
         );
@@ -69,8 +71,8 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
     if (user.userType == 'company') {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Компании не могут подавать на вакансии'),
+          SnackBar(
+            content: Text(l10n.companiesCannotApply),
             backgroundColor: Colors.red,
           ),
         );
@@ -81,33 +83,46 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
       return;
     }
 
-    final success = await service.applyToVacancy(
-      _vacancy!.id,
-      user.id,
-      userName: user.name,
-      userPhone: user.phoneNumber,
-      userEmail: user.email,
-      userType: user.userType,
-    );
+    try {
+      final success = await service.applyToVacancy(
+        _vacancy!.id,
+        user.id,
+        userName: user.name,
+        userPhone: user.phoneNumber,
+        userEmail: user.email,
+        userType: user.userType,
+      );
 
-    setState(() {
-      _isApplying = false;
-    });
+      setState(() {
+        _isApplying = false;
+      });
 
-    if (mounted) {
-      if (success) {
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.applicationSent),
+              backgroundColor: Colors.green,
+            ),
+          );
+          ref.invalidate(allVacanciesProvider);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.applicationError),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isApplying = false;
+      });
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Отклик отправлен!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        // Обновляем список вакансий
-        ref.invalidate(allVacanciesProvider);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ошибка при отправке отклика'),
+          SnackBar(
+            content: Text('${l10n.applicationError}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -131,10 +146,11 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Вакансия'),
+          title: Text(l10n.vacancy),
           backgroundColor: AppConstants.primaryColor,
           foregroundColor: Colors.white,
         ),
@@ -145,7 +161,7 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
     if (_vacancy == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Вакансия'),
+          title: Text(l10n.vacancy),
           backgroundColor: AppConstants.primaryColor,
           foregroundColor: Colors.white,
         ),
@@ -159,11 +175,11 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                 color: AppConstants.textSecondary,
               ),
               const SizedBox(height: AppConstants.spacingMD),
-              const Text('Вакансия не найдена'),
+              Text(l10n.vacancyNotFound),
               const SizedBox(height: AppConstants.spacingMD),
               ElevatedButton(
                 onPressed: () => context.pop(),
-                child: const Text('Назад'),
+                child: Text(l10n.back),
               ),
             ],
           ),
@@ -175,7 +191,7 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Вакансия'),
+        title: Text(l10n.vacancy),
         backgroundColor: AppConstants.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -214,8 +230,8 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                               color: Colors.red,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              '🔥 Горячая',
+                            child: Text(
+                              '🔥 ${l10n.hotVacancy}',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -235,8 +251,8 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                               color: Colors.orange,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              '⚡ Срочно',
+                            child: Text(
+                              '⚡ ${l10n.urgentVacancy}',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -296,20 +312,20 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                   // Quick info
                   _InfoRow(
                     icon: Icons.schedule,
-                    label: 'График',
+                    label: l10n.schedule,
                     value: vacancy.schedule,
                   ),
                   const SizedBox(height: AppConstants.spacingMD),
                   _InfoRow(
                     icon: Icons.location_on,
-                    label: 'Локация',
+                    label: l10n.location,
                     value: vacancy.location,
                   ),
                   if (vacancy.distance != null) ...[
                     const SizedBox(height: AppConstants.spacingMD),
                     _InfoRow(
                       icon: Icons.near_me,
-                      label: 'Расстояние',
+                      label: l10n.distance,
                       value: vacancy.distance!,
                     ),
                   ],
@@ -317,7 +333,7 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                     const SizedBox(height: AppConstants.spacingMD),
                     _InfoRow(
                       icon: Icons.star,
-                      label: 'Рейтинг работодателя',
+                      label: l10n.employerRating,
                       value: '${vacancy.employerRating}',
                     ),
                   ],
@@ -344,7 +360,7 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Совместимость: ${vacancy.compatibilityScore!.toInt()}%',
+                                '${l10n.compatibility}: ${vacancy.compatibilityScore!.toInt()}%',
                                 style: TextStyle(
                                   color: _getIntentColor(),
                                   fontSize: 18,
@@ -388,7 +404,7 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                   const SizedBox(height: AppConstants.spacingLG),
                   // Description
                   Text(
-                    'Описание',
+                    l10n.description,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -401,7 +417,7 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                   const SizedBox(height: AppConstants.spacingLG),
                   // Requirements
                   Text(
-                    'Требования',
+                    l10n.requirements,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -469,8 +485,8 @@ class _VacancyDetailScreenState extends ConsumerState<VacancyDetailScreen> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text(
-                      'Откликнуться',
+                  : Text(
+                      l10n.apply,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

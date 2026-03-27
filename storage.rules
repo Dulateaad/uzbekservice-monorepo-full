@@ -36,72 +36,64 @@ service firebase.storage {
     
     // ========== АВАТАРЫ ПОЛЬЗОВАТЕЛЕЙ ==========
     // Путь: avatars/{userId}/{filename}
+    // Примечание: userId в приложении — phoneId, не Firebase UID (Anonymous Auth)
     
     match /avatars/{userId}/{fileName} {
-      // Чтение: все аутентифицированные пользователи могут читать аватары
       allow read: if isAuthenticated();
-      
-      // Запись: только владелец может загружать/обновлять свой аватар
-      allow write: if isAuthenticated() && 
-                     isOwner(userId) &&
-                     isValidSize() &&
-                     isImage();
-      
-      // Удаление: только владелец может удалить свой аватар
-      allow delete: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && isValidSize() && isImage();
+      allow delete: if isAuthenticated();
+    }
+    
+    // ========== ФОТО СПЕЦИАЛИСТА (FirebaseStorageService: specialist_photos/) ==========
+    match /specialist_photos/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidSize() && isImage();
+      allow delete: if isAuthenticated();
     }
     
     // ========== ФОТОГРАФИИ ЗАКАЗОВ ==========
     // Путь: orders/{orderId}/{fileName}
     
     match /orders/{orderId}/{fileName} {
-      // Чтение: участники заказа могут читать фотографии
-      // (проверка через Firestore будет в приложении)
       allow read: if isAuthenticated();
-      
-      // Запись: только клиент или специалист, связанные с заказом, могут загружать фотографии
-      // (детальная проверка через Firestore будет в приложении)
-      allow write: if isAuthenticated() && 
-                     isValidSize() &&
-                     isImage();
-      
-      // Удаление: только участники заказа могут удалять фотографии
+      allow write: if isAuthenticated() && isValidSize() && isImage();
+      allow delete: if isAuthenticated();
+    }
+    
+    // ========== ФОТО ЧЕКОВ / РЕЦЕПТОВ (Business Hub OCR) ==========
+    // Путь: receipts/{userId}/{fileName}
+    
+    match /receipts/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidSize() && isImage();
+      allow delete: if isAuthenticated();
+    }
+    
+    // ========== ФОТО ИНСТРУМЕНТОВ / ТОВАРОВ СПЕЦИАЛИСТА ==========
+    // Путь: tools/{ownerId}/{fileName}
+    
+    match /tools/{ownerId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidSize() && (isImage() || isDocument());
       allow delete: if isAuthenticated();
     }
     
     // ========== ДОКУМЕНТЫ СПЕЦИАЛИСТОВ ==========
     // Путь: specialists/{specialistId}/documents/{fileName}
-    // Для сертификатов, лицензий и других документов
     
     match /specialists/{specialistId}/documents/{fileName} {
-      // Чтение: все аутентифицированные пользователи могут читать документы специалистов
       allow read: if isAuthenticated();
-      
-      // Запись: только специалист может загружать свои документы
-      allow write: if isAuthenticated() && 
-                     isOwner(specialistId) &&
-                     isValidSize() &&
-                     (isImage() || isDocument());
-      
-      // Удаление: только специалист может удалять свои документы
-      allow delete: if isAuthenticated() && isOwner(specialistId);
+      allow write: if isAuthenticated() && isValidSize() && (isImage() || isDocument());
+      allow delete: if isAuthenticated();
     }
     
     // ========== ВРЕМЕННЫЕ ФАЙЛЫ ==========
     // Путь: temp/{userId}/{fileName}
-    // Для временных загрузок перед обработкой
     
     match /temp/{userId}/{fileName} {
-      // Чтение: только владелец может читать временные файлы
-      allow read: if isAuthenticated() && isOwner(userId);
-      
-      // Запись: только владелец может загружать временные файлы
-      allow write: if isAuthenticated() && 
-                     isOwner(userId) &&
-                     isValidSize();
-      
-      // Удаление: только владелец может удалять временные файлы
-      allow delete: if isAuthenticated() && isOwner(userId);
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidSize();
+      allow delete: if isAuthenticated();
     }
     
     // ========== ОБЩИЕ ФАЙЛЫ ==========

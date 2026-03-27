@@ -1,17 +1,42 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 
 enum UserIntent {
-  moreIncome('more-income', '💰', 'Быстрый доход', 'Найди работу с высокой оплатой'),
-  stability('stability', '🗓️', 'Постоянная работа', 'Вакансии с графиком и фиксированным доходом'),
-  sideJob('side-job', '⏱️', 'Подработка рядом', 'Гибкие варианты для дополнительного заработка'),
-  growth('growth', '🌱', 'Рост и обучение', 'Вакансии с возможностью развития и обучения');
+  moreIncome('more-income', '💰'),
+  stability('stability', '🗓️'),
+  sideJob('side-job', '⏱️'),
+  growth('growth', '🌱');
 
   final String id;
   final String icon;
-  final String title;
-  final String description;
 
-  const UserIntent(this.id, this.icon, this.title, this.description);
+  const UserIntent(this.id, this.icon);
+  
+  // Методы для получения локализованных строк
+  String getTitle(dynamic l10n) {
+    switch (this) {
+      case UserIntent.moreIncome:
+        return l10n.moreIncome;
+      case UserIntent.stability:
+        return l10n.stability;
+      case UserIntent.sideJob:
+        return l10n.sideJob;
+      case UserIntent.growth:
+        return l10n.growth;
+    }
+  }
+  
+  String getDescription(dynamic l10n) {
+    switch (this) {
+      case UserIntent.moreIncome:
+        return l10n.moreIncomeDesc;
+      case UserIntent.stability:
+        return l10n.stabilityDesc;
+      case UserIntent.sideJob:
+        return l10n.sideJobDesc;
+      case UserIntent.growth:
+        return l10n.growthDesc;
+    }
+  }
 }
 
 class VacancyCategory {
@@ -133,8 +158,8 @@ class Vacancy {
       'compatibilityReasons': compatibilityReasons,
       'employerRating': employerRating,
       'distance': distance,
-      'createdAt': createdAt.toIso8601String(),
-      'expiresAt': expiresAt?.toIso8601String(),
+      'createdAt': firestore.Timestamp.fromDate(createdAt),
+      'expiresAt': expiresAt != null ? firestore.Timestamp.fromDate(expiresAt!) : null,
       'companyId': companyId,
       'status': status,
     };
@@ -205,7 +230,7 @@ class VacancyApplication {
       'userEmail': userEmail,
       'userType': userType,
       'status': status,
-      'appliedAt': appliedAt.toIso8601String(),
+      'appliedAt': firestore.Timestamp.fromDate(appliedAt),
       'coverLetter': coverLetter,
       'userProfile': userProfile,
     };

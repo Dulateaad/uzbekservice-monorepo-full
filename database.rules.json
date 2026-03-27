@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "users": {
+      "$deviceId": {
+        "telemetry": {
+          ".read": true,
+          ".write": true
+        },
+        "rr_history": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    }
+  }
+}

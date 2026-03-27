@@ -15,11 +15,16 @@ class IslandNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Получаем безопасную зону снизу для правильного позиционирования
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
     return Positioned(
-      bottom: AppConstants.spacingMD,
+      bottom: AppConstants.spacingMD + bottomPadding,
       left: AppConstants.spacingMD,
       right: AppConstants.spacingMD,
-      child: Container(
+      child: SafeArea(
+        top: false,
+        child: Container(
         decoration: BoxDecoration(
           color: AppConstants.surfaceColor,
           borderRadius: BorderRadius.circular(AppConstants.radiusXXL),
@@ -43,7 +48,7 @@ class IslandNavigation extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(
           vertical: AppConstants.spacingXS + 2,
-          horizontal: AppConstants.spacingSM,
+          horizontal: AppConstants.spacingXS + 2,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -61,11 +66,15 @@ class IslandNavigation extends StatelessWidget {
                   splashColor: AppConstants.primaryColor.withOpacity(0.1),
                   highlightColor: AppConstants.primaryColor.withOpacity(0.05),
                   child: AnimatedContainer(
+                    constraints: const BoxConstraints(
+                      minHeight: 60,
+                      maxHeight: 70,
+                    ),
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOut,
                     padding: const EdgeInsets.symmetric(
                       vertical: AppConstants.spacingSM - 2,
-                      horizontal: AppConstants.spacingSM,
+                      horizontal: AppConstants.spacingXS,
                     ),
                     decoration: BoxDecoration(
                       gradient: isSelected 
@@ -87,6 +96,8 @@ class IslandNavigation extends StatelessWidget {
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 150),
@@ -112,7 +123,7 @@ class IslandNavigation extends StatelessWidget {
                             color: isSelected 
                                 ? AppConstants.primaryContrastColor 
                                 : AppConstants.textSecondary,
-                            size: 22,
+                            size: 20,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -120,7 +131,7 @@ class IslandNavigation extends StatelessWidget {
                           duration: const Duration(milliseconds: 150),
                           curve: Curves.easeOut,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: isSelected 
                                 ? FontWeight.w600 
                                 : FontWeight.w500,
@@ -128,9 +139,16 @@ class IslandNavigation extends StatelessWidget {
                                 ? AppConstants.primaryContrastColor 
                                 : AppConstants.textSecondary,
                             fontFamily: AppConstants.fontFamily,
-                            letterSpacing: isSelected ? 0.3 : 0,
+                            letterSpacing: isSelected ? 0.2 : 0,
+                            height: 1.2,
                           ),
-                          child: Text(item.label),
+                          child: Text(
+                            item.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                          ),
                         ),
                       ],
                     ),
@@ -139,6 +157,7 @@ class IslandNavigation extends StatelessWidget {
               ),
             );
           }).toList(),
+        ),
         ),
       ),
     );

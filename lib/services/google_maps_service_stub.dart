@@ -62,7 +62,7 @@ class GoogleMapsService {
   }
   
   static String getGoogleMapsApiKey() {
-    return 'AIzaSyAomtM5KaHgrG95yTVN5Wirn46Qgq--yKY';
+    return 'AIzaSyBFHmNf-RhcwfdfBJyqm20eEuQaybgHMgc';
   }
 }
 

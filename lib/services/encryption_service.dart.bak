@@ -1,0 +1,377 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:pointycastle/export.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+/// Service for end-to-end encryption (E2E) similar to Telegram
+/// Implements AES-256-GCM for message encryption and RSA-2048 for key exchange
+class EncryptionService {
+  static final EncryptionService _instance = EncryptionService._internal();
+  factory EncryptionService() => _instance;
+  EncryptionService._internal();
+
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  
+  // Key storage prefixes
+  static const String _privateKeyPrefix = 'rsa_private_key_';
+  static const String _publicKeyPrefix = 'rsa_public_key_';
+  static const String _sessionKeyPrefix = 'session_key_';
+  static const String _saltPrefix = 'salt_';
+
+  /// Generate RSA key pair for user (2048-bit)
+  Future<AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey>> generateKeyPair() async {
+    final keyGen = RSAKeyGenerator();
+    final secureRandom = FortunaRandom();
+    
+    final seedSource = Random.secure();
+    final seeds = <int>[];
+    for (int i = 0; i < 32; i++) {
+      seeds.add(seedSource.nextInt(255));
+    }
+    secureRandom.seed(KeyParameter(Uint8List.fromList(seeds)));
+    
+    final params = RSAKeyGeneratorParameters(BigInt.parse('65537'), 2048, 64);
+    final parametersWithRNG = ParametersWithRandom(params, secureRandom);
+    
+    keyGen.init(parametersWithRNG);
+    final keyPair = keyGen.generateKeyPair();
+    
+    return AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey>(
+      keyPair.publicKey as RSAPublicKey,
+      keyPair.privateKey as RSAPrivateKey,
+    );
+  }
+
+  /// Save RSA key pair to secure storage
+  Future<void> saveKeyPair(
+    String userId,
+    AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey> keyPair,
+  ) async {
+    // Convert keys to PEM format
+    final publicKeyPem = _rsaPublicKeyToPem(keyPair.publicKey);
+    final privateKeyPem = _rsaPrivateKeyToPem(keyPair.privateKey);
+    
+    await _storage.write(
+      key: '$_publicKeyPrefix$userId',
+      value: publicKeyPem,
+    );
+    await _storage.write(
+      key: '$_privateKeyPrefix$userId',
+      value: privateKeyPem,
+    );
+  }
+
+  /// Get user's public key
+  Future<String?> getPublicKey(String userId) async {
+    return await _storage.read(key: '$_publicKeyPrefix$userId');
+  }
+
+  /// Get user's private key
+  Future<String?> getPrivateKey(String userId) async {
+    return await _storage.read(key: '$_privateKeyPrefix$userId');
+  }
+
+  /// Generate session key for a chat (AES-256)
+  Future<Uint8List> generateSessionKey() async {
+    final random = Random.secure();
+    final key = Uint8List(32); // 256 bits
+    for (int i = 0; i < key.length; i++) {
+      key[i] = random.nextInt(256);
+    }
+    return key;
+  }
+
+  /// Encrypt session key with recipient's public key (RSA-OAEP)
+  Future<String> encryptSessionKey(
+    Uint8List sessionKey,
+    String recipientPublicKeyPem,
+  ) async {
+    final publicKey = _pemToRSAPublicKey(recipientPublicKeyPem);
+    final encrypter = OAEPEncoding(RSAEngine())
+      ..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
+    
+    final encrypted = encrypter.process(sessionKey);
+    return base64Encode(encrypted);
+  }
+
+  /// Decrypt session key with user's private key
+  Future<Uint8List> decryptSessionKey(
+    String encryptedSessionKey,
+    String userId,
+  ) async {
+    final privateKeyPem = await getPrivateKey(userId);
+    if (privateKeyPem == null) {
+      throw Exception('Private key not found for user $userId');
+    }
+    
+    final privateKey = _pemToRSAPrivateKey(privateKeyPem);
+    final decrypter = OAEPEncoding(RSAEngine())
+      ..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+    
+    final encrypted = base64Decode(encryptedSessionKey);
+    return Uint8List.fromList(decrypter.process(encrypted));
+  }
+
+  /// Save session key for a chat
+  Future<void> saveSessionKey(String chatId, Uint8List sessionKey) async {
+    await _storage.write(
+      key: '$_sessionKeyPrefix$chatId',
+      value: base64Encode(sessionKey),
+    );
+  }
+
+  /// Get session key for a chat
+  Future<Uint8List?> getSessionKey(String chatId) async {
+    final keyBase64 = await _storage.read(key: '$_sessionKeyPrefix$chatId');
+    if (keyBase64 == null) return null;
+    return base64Decode(keyBase64);
+  }
+
+  /// Encrypt message content using AES-256-GCM
+  Future<EncryptedMessage> encryptMessage(
+    String plaintext,
+    Uint8List sessionKey,
+  ) async {
+    // Generate random IV (12 bytes for GCM)
+    final random = Random.secure();
+    final iv = Uint8List(12);
+    for (int i = 0; i < iv.length; i++) {
+      iv[i] = random.nextInt(256);
+    }
+
+    // Generate salt for key derivation
+    final salt = Uint8List(16);
+    for (int i = 0; i < salt.length; i++) {
+      salt[i] = random.nextInt(256);
+    }
+
+    // Derive key using PBKDF2
+    final derivedKey = _deriveKey(sessionKey, salt);
+
+    // Encrypt using AES-256-GCM
+    final key = encrypt.Key(derivedKey);
+    final ivEncrypt = encrypt.IV(iv);
+    final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.gcm));
+    
+    final encrypted = encrypter.encrypt(plaintext, iv: ivEncrypt);
+    
+    return EncryptedMessage(
+      encryptedData: encrypted.base64,
+      iv: base64Encode(iv),
+      salt: base64Encode(salt),
+      authTag: base64Encode(encrypted.tag.bytes),
+    );
+  }
+
+  /// Decrypt message content using AES-256-GCM
+  Future<String> decryptMessage(
+    EncryptedMessage encryptedMessage,
+    Uint8List sessionKey,
+  ) async {
+    try {
+      final iv = base64Decode(encryptedMessage.iv);
+      final salt = base64Decode(encryptedMessage.salt);
+      final encryptedData = base64Decode(encryptedMessage.encryptedData);
+      final authTag = base64Decode(encryptedMessage.authTag);
+
+      // Derive key using PBKDF2
+      final derivedKey = _deriveKey(sessionKey, salt);
+
+      // Decrypt using AES-256-GCM
+      final key = encrypt.Key(derivedKey);
+      final ivDecrypt = encrypt.IV(iv);
+      final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.gcm));
+      
+      final encrypted = encrypt.Encrypted.fromBase64(encryptedMessage.encryptedData);
+      encrypted.tag = encrypt.Encrypted(authTag);
+      
+      return encrypter.decrypt(encrypted, iv: ivDecrypt);
+    } catch (e) {
+      throw Exception('Failed to decrypt message: $e');
+    }
+  }
+
+  /// Derive key using PBKDF2
+  Uint8List _deriveKey(Uint8List key, Uint8List salt) {
+    final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
+      ..init(Pbkdf2Parameters(salt, 10000, 32));
+    
+    return pbkdf2.process(key);
+  }
+
+  /// Convert RSA public key to PEM format
+  String _rsaPublicKeyToPem(RSAPublicKey publicKey) {
+    final algorithmSeq = ASN1Sequence();
+    final algorithmAsn1Obj = ASN1Object.fromBytes(Uint8List.fromList([0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00]));
+    algorithmSeq.add(algorithmAsn1Obj);
+    
+    final publicKeySeq = ASN1Sequence();
+    publicKeySeq.add(ASN1Integer(publicKey.modulus!));
+    publicKeySeq.add(ASN1Integer(publicKey.exponent!));
+    final publicKeySeqBitString = ASN1BitString(publicKeySeq.encodedBytes);
+    
+    final topLevelSeq = ASN1Sequence();
+    topLevelSeq.add(algorithmSeq);
+    topLevelSeq.add(publicKeySeqBitString);
+    
+    final base64Key = base64Encode(topLevelSeq.encodedBytes);
+    return '-----BEGIN PUBLIC KEY-----\n$base64Key\n-----END PUBLIC KEY-----';
+  }
+
+  /// Convert RSA private key to PEM format
+  String _rsaPrivateKeyToPem(RSAPrivateKey privateKey) {
+    final version = ASN1Integer(BigInt.from(0));
+    final modulus = ASN1Integer(privateKey.n!);
+    final publicExponent = ASN1Integer(privateKey.exponent!);
+    final privateExponent = ASN1Integer(privateKey.d!);
+    final p = ASN1Integer(privateKey.p!);
+    final q = ASN1Integer(privateKey.q!);
+    final dP = privateKey.privateExponent! % (privateKey.p! - BigInt.one);
+    final dQ = privateKey.privateExponent! % (privateKey.q! - BigInt.one);
+    final qInv = privateKey.q!.modInverse(privateKey.p!);
+    
+    final seq = ASN1Sequence();
+    seq.add(version);
+    seq.add(modulus);
+    seq.add(publicExponent);
+    seq.add(privateExponent);
+    seq.add(p);
+    seq.add(q);
+    seq.add(ASN1Integer(dP));
+    seq.add(ASN1Integer(dQ));
+    seq.add(ASN1Integer(qInv));
+    
+    final base64Key = base64Encode(seq.encodedBytes);
+    return '-----BEGIN PRIVATE KEY-----\n$base64Key\n-----END PRIVATE KEY-----';
+  }
+
+  /// Convert PEM to RSA public key
+  RSAPublicKey _pemToRSAPublicKey(String pem) {
+    final publicKeyDER = _pemToDER(pem);
+    final asn1Parser = ASN1Parser(publicKeyDER);
+    final topLevelSeq = asn1Parser.nextObject() as ASN1Sequence;
+    
+    final publicKeyBitString = topLevelSeq.elements![1] as ASN1BitString;
+    final publicKeyAsn = ASN1Parser(publicKeyBitString.valueBytes());
+    final publicKeySeq = publicKeyAsn.nextObject() as ASN1Sequence;
+    
+    final modulus = (publicKeySeq.elements![0] as ASN1Integer).valueAsBigInteger;
+    final exponent = (publicKeySeq.elements![1] as ASN1Integer).valueAsBigInteger;
+    
+    final rsaPublicKey = RSAPublicKey(modulus, exponent);
+    return rsaPublicKey;
+  }
+
+  /// Convert PEM to RSA private key
+  RSAPrivateKey _pemToRSAPrivateKey(String pem) {
+    final privateKeyDER = _pemToDER(pem);
+    final asn1Parser = ASN1Parser(privateKeyDER);
+    final topLevelSeq = asn1Parser.nextObject() as ASN1Sequence;
+    
+    final modulus = (topLevelSeq.elements![1] as ASN1Integer).valueAsBigInteger;
+    final publicExponent = (topLevelSeq.elements![2] as ASN1Integer).valueAsBigInteger;
+    final privateExponent = (topLevelSeq.elements![3] as ASN1Integer).valueAsBigInteger;
+    final p = (topLevelSeq.elements![4] as ASN1Integer).valueAsBigInteger;
+    final q = (topLevelSeq.elements![5] as ASN1Integer).valueAsBigInteger;
+    
+    final rsaPrivateKey = RSAPrivateKey(modulus, publicExponent, privateExponent, p, q);
+    return rsaPrivateKey;
+  }
+
+  /// Convert PEM string to DER bytes
+  Uint8List _pemToDER(String pem) {
+    final lines = pem.split('\n');
+    final base64Lines = lines.where((line) => 
+      !line.startsWith('-----') && line.isNotEmpty
+    ).join();
+    return base64Decode(base64Lines);
+  }
+
+  /// Initialize encryption for user (generate and save key pair)
+  Future<void> initializeUserEncryption(String userId) async {
+    final existingKey = await getPublicKey(userId);
+    if (existingKey != null) {
+      // Key pair already exists
+      return;
+    }
+    
+    final keyPair = await generateKeyPair();
+    await saveKeyPair(userId, keyPair);
+  }
+
+  /// Exchange keys between two users for a chat
+  Future<void> exchangeKeys(
+    String chatId,
+    String userId1,
+    String userId2,
+  ) async {
+    // Ensure both users have key pairs
+    await initializeUserEncryption(userId1);
+    await initializeUserEncryption(userId2);
+    
+    // Generate session key
+    final sessionKey = await generateSessionKey();
+    
+    // Get public keys
+    final user1PublicKey = await getPublicKey(userId1);
+    final user2PublicKey = await getPublicKey(userId2);
+    
+    if (user1PublicKey == null || user2PublicKey == null) {
+      throw Exception('Public keys not found for key exchange');
+    }
+    
+    // Encrypt session key for both users
+    final encryptedKeyForUser1 = await encryptSessionKey(sessionKey, user1PublicKey);
+    final encryptedKeyForUser2 = await encryptSessionKey(sessionKey, user2PublicKey);
+    
+    // Save encrypted session keys (in real implementation, these would be sent via secure channel)
+    await _storage.write(
+      key: '${_sessionKeyPrefix}${chatId}_$userId1',
+      value: encryptedKeyForUser1,
+    );
+    await _storage.write(
+      key: '${_sessionKeyPrefix}${chatId}_$userId2',
+      value: encryptedKeyForUser2,
+    );
+    
+    // Also save plain session key for current user (in production, decrypt on-the-fly)
+    await saveSessionKey(chatId, sessionKey);
+  }
+}
+
+/// Model for encrypted message
+class EncryptedMessage {
+  final String encryptedData; // Base64 encoded
+  final String iv; // Base64 encoded
+  final String salt; // Base64 encoded
+  final String authTag; // Base64 encoded GCM authentication tag
+
+  EncryptedMessage({
+    required this.encryptedData,
+    required this.iv,
+    required this.salt,
+    required this.authTag,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'encryptedData': encryptedData,
+      'iv': iv,
+      'salt': salt,
+      'authTag': authTag,
+    };
+  }
+
+  factory EncryptedMessage.fromMap(Map<String, dynamic> map) {
+    return EncryptedMessage(
+      encryptedData: map['encryptedData'] ?? '',
+      iv: map['iv'] ?? '',
+      salt: map['salt'] ?? '',
+      authTag: map['authTag'] ?? '',
+    );
+  }
+}
+

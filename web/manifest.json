@@ -1,23 +1,30 @@
 {
-    "name": "ODO.UZ",
+    "name": "ODO.UZ - Найти специалиста",
     "short_name": "ODO.UZ",
-    "start_url": ".",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#000000",
+    "display_override": ["standalone", "minimal-ui", "browser"],
+    "background_color": "#1565C0",
+    "theme_color": "#2196F3",
     "description": "ODO.UZ - Платформа для соединения клиентов со специалистами в Узбекистане и Казахстане",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["business", "lifestyle", "utilities"],
+    "lang": "ru",
+    "dir": "ltr",
     "icons": [
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-maskable-192.png",
@@ -30,6 +37,21 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        }
+    ],
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "Специалисты",
+            "short_name": "Специалисты",
+            "description": "Найти специалиста",
+            "url": "/home",
+            "icons": [
+                {
+                    "src": "icons/Icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
         }
     ]
 }

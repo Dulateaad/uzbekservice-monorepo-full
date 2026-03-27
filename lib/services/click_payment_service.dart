@@ -2,22 +2,19 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import '../models/payment_model.dart';
+import '../config/click_config.dart';
 
 /// Сервис для работы с платежной системой Click
 /// 
 /// Для production нужно:
 /// 1. Зарегистрироваться как мерчант на my.click.uz
 /// 2. Получить merchant_id и service_id
-/// 3. Настроить Prepare и Complete URL на сервере
+/// 3. Настроить Prepare и Complete URL на сервере (Firebase Functions)
 class ClickPaymentService {
-  // ⚠️ В production эти данные должны храниться на сервере!
-  static const String _merchantId = 'YOUR_MERCHANT_ID';  // Заменить на реальный
-  static const String _serviceId = 'YOUR_SERVICE_ID';    // Заменить на реальный
-  static const String _secretKey = 'YOUR_SECRET_KEY';    // Заменить на реальный
-  
   // URL для возврата после оплаты
-  static const String _returnUrl = 'odouzapp://payment/callback';
+  static const String _returnUrl = ClickConfig.returnUrl;
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -51,14 +48,23 @@ class ClickPaymentService {
   }
 
   /// Получить URL для оплаты через Click
+  /// 
+  /// В production должен вызывать серверный endpoint для создания платежа
   String getPaymentUrl({
     required String orderId,
     required double amount,
     String? cardType,
   }) {
+    // Проверяем конфигурацию
+    if (!ClickConfig.isConfigured) {
+      throw Exception(
+        'Click не настроен. Установите CLICK_MERCHANT_ID и CLICK_SERVICE_ID',
+      );
+    }
+    
     final params = ClickPaymentParams(
-      merchantId: _merchantId,
-      serviceId: _serviceId,
+      merchantId: ClickConfig.merchantId,
+      serviceId: ClickConfig.serviceId,
       transactionParam: orderId,
       amount: amount,
       returnUrl: _returnUrl,
@@ -66,6 +72,40 @@ class ClickPaymentService {
     );
 
     return params.paymentUrl;
+  }
+  
+  /// Создать платеж через серверный endpoint (рекомендуемый способ)
+  /// 
+  /// В production используйте этот метод вместо прямого создания URL
+  Future<String> createPaymentViaServer({
+    required String orderId,
+    required double amount,
+    required String userId,
+    String? cardType,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ClickConfig.serverBaseUrl}/clickPrepare'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'orderId': orderId,
+          'amount': amount,
+          'userId': userId,
+          'cardType': cardType,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['paymentUrl'] as String;
+      } else {
+        throw Exception('Ошибка создания платежа: ${response.body}');
+      }
+    } catch (e) {
+      print('⚠️ Ошибка создания платежа через сервер, используем прямой URL: $e');
+      // Fallback к прямому URL
+      return getPaymentUrl(orderId: orderId, amount: amount, cardType: cardType);
+    }
   }
 
   /// Проверить статус платежа
@@ -156,8 +196,10 @@ class ClickPaymentService {
   }
 
   /// Генерация подписи для Prepare/Complete запросов
-  /// Используется на сервере для верификации запросов от Click
-  String generateSignature({
+  /// 
+  /// ⚠️ ВАЖНО: Этот метод должен использоваться только на сервере!
+  /// Secret key не должен быть доступен в клиентском коде
+  static String generateSignature({
     required String clickTransId,
     required String serviceId,
     required String secretKey,
@@ -173,9 +215,14 @@ class ClickPaymentService {
   }
 
   /// Верификация подписи от Click
-  bool verifySignature({
+  /// 
+  /// ⚠️ ВАЖНО: Этот метод должен использоваться только на сервере!
+  /// Для верификации на клиенте используйте серверный endpoint
+  static bool verifySignature({
     required String receivedSign,
     required String clickTransId,
+    required String serviceId,
+    required String secretKey,
     required String merchantTransId,
     required String amount,
     required String action,
@@ -183,8 +230,8 @@ class ClickPaymentService {
   }) {
     final expectedSign = generateSignature(
       clickTransId: clickTransId,
-      serviceId: _serviceId,
-      secretKey: _secretKey,
+      serviceId: serviceId,
+      secretKey: secretKey,
       merchantTransId: merchantTransId,
       amount: amount,
       action: action,

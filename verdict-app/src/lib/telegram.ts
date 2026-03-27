@@ -10,6 +10,9 @@ export function initTelegramWebApp() {
   tg.ready();
   tg.expand();
   tg.enableClosingConfirmation();
+  if (typeof tg.disableVerticalSwipes === 'function') {
+    tg.disableVerticalSwipes();
+  }
 
   document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
   document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');

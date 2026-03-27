@@ -8,10 +8,17 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 
 import 'utils/app_router.dart';
 import 'config/firebase_config.dart';
+import 'config/gemini_init.dart';
+import 'widgets/back_gesture_guard.dart';
 import 'theme/app_theme.dart';
 import 'services/push_notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'providers/notification_navigation_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'services/google_maps_service.dart';
+import 'services/analytics_service.dart';
+import 'providers/locale_provider.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +37,14 @@ void main() async {
   
   // Инициализируем push-уведомления
   await PushNotificationService.initialize();
+  
+  // Предзагружаем Google Maps API для веб (для ускорения загрузки карты)
+  if (kIsWeb) {
+    GoogleMapsService.initialize().catchError((e) {
+      print('⚠️ Предзагрузка Google Maps API: $e');
+    });
+    initGeminiConfigForWeb();
+  }
   
   // Initialize Hive for local storage
   await Hive.initFlutter();
@@ -55,6 +70,9 @@ class UzbekistanServiceApp extends ConsumerWidget {
     // Устанавливаем router для навигации из уведомлений
     NotificationNavigationProvider.setRouter(AppRouter.router);
     
+    // Получаем текущий язык из провайдера
+    final locale = ref.watch(localeProvider);
+    
     return MaterialApp.router(
       title: 'ODO.UZ',
       debugShowCheckedModeBanner: false,
@@ -63,20 +81,17 @@ class UzbekistanServiceApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       
       // Localization
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('ru', 'RU'), // Russian
-        Locale('uz', 'UZ'), // Uzbek
-        Locale('en', 'US'), // English
-      ],
-      locale: const Locale('ru', 'RU'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: locale,
       
       // Routing
       routerConfig: AppRouter.router,
+      
+      // Защита от случайного свайпа закрытия (PWA, мобильные)
+      builder: (context, child) => BackGestureGuard(
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

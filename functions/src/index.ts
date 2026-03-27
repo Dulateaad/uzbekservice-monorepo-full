@@ -985,3 +985,5 @@ The Anama App Team
   }
 });
 
+export {anamaMergePilotSession} from './anama_pilot';
+

@@ -5,6 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../constants/app_constants.dart';
 import '../../services/click_payment_service.dart';
 import '../../models/payment_model.dart';
+import '../../providers/firestore_auth_provider.dart';
 
 class ClickPaymentScreen extends ConsumerStatefulWidget {
   final String orderId;
@@ -40,18 +41,38 @@ class _ClickPaymentScreenState extends ConsumerState<ClickPaymentScreen> {
 
   Future<void> _initPayment() async {
     try {
+      // Получаем текущего пользователя из auth state
+      final authState = ref.read(firestoreAuthProvider);
+      final user = authState.user;
+      
+      if (user == null) {
+        throw Exception('Пользователь не авторизован');
+      }
+      
       // Создаем транзакцию
       _transaction = await _paymentService.createTransaction(
         orderId: widget.orderId,
         amount: widget.amount,
-        userId: 'current_user_id', // TODO: Получить из auth state
+        userId: user.id,
       );
 
-      // Получаем URL для оплаты
-      final paymentUrl = _paymentService.getPaymentUrl(
-        orderId: widget.orderId,
-        amount: widget.amount,
-      );
+      // Получаем URL для оплаты (через серверный endpoint или прямой URL)
+      String paymentUrl;
+      try {
+        // Пытаемся использовать серверный endpoint (рекомендуемый способ)
+        paymentUrl = await _paymentService.createPaymentViaServer(
+          orderId: widget.orderId,
+          amount: widget.amount,
+          userId: user.id,
+        );
+      } catch (e) {
+        // Fallback к прямому URL если сервер недоступен
+        print('⚠️ Серверный endpoint недоступен, используем прямой URL: $e');
+        paymentUrl = _paymentService.getPaymentUrl(
+          orderId: widget.orderId,
+          amount: widget.amount,
+        );
+      }
 
       // Инициализируем WebView
       _controller = WebViewController()
