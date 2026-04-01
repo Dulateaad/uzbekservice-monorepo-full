@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 
 import 'utils/app_router.dart';
 import 'config/firebase_config.dart';
@@ -19,6 +19,7 @@ import 'services/google_maps_service.dart';
 import 'services/analytics_service.dart';
 import 'providers/locale_provider.dart';
 import 'l10n/app_localizations.dart';
+import 'services/cpa_attribution_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +49,10 @@ void main() async {
   
   // Initialize Hive for local storage
   await Hive.initFlutter();
+
+  if (kIsWeb) {
+    await CpaAttributionService.instance.captureFromUri(Uri.base);
+  }
   
   // В тестовом режиме (debug) держим экран включенным
   if (kDebugMode) {

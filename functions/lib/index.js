@@ -1,7 +1,7 @@
 "use strict";
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.anamaMergePilotSession = exports.sendParentalConsentOtp = exports.sendTelegramMessage = exports.oneidUser = exports.oneidCallback = exports.oneidLogin = exports.oneidHealth = exports.clickWebhook = exports.clickComplete = exports.clickPrepare = void 0;
+exports.cpaPostbackOnUserCreate = exports.anamaMergePilotSession = exports.sendParentalConsentOtp = exports.sendTelegramMessage = exports.oneidUser = exports.oneidCallback = exports.oneidLogin = exports.oneidHealth = exports.clickWebhook = exports.clickComplete = exports.clickPrepare = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
@@ -806,4 +806,6 @@ The Anama App Team
 });
 var anama_pilot_1 = require("./anama_pilot");
 Object.defineProperty(exports, "anamaMergePilotSession", { enumerable: true, get: function () { return anama_pilot_1.anamaMergePilotSession; } });
+var cpa_postback_1 = require("./cpa_postback");
+Object.defineProperty(exports, "cpaPostbackOnUserCreate", { enumerable: true, get: function () { return cpa_postback_1.cpaPostbackOnUserCreate; } });
 //# sourceMappingURL=index.js.map

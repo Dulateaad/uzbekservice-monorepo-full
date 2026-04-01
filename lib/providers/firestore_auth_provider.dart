@@ -7,6 +7,7 @@ import '../services/twilio_sms_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/analytics_service.dart';
 import '../services/vps_api_service.dart';
+import '../services/cpa_attribution_service.dart';
 
 class FirestoreAuthState {
   final FirestoreUser? user;
@@ -169,6 +170,7 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
         // Если есть имя в registrationName - это регистрация
         if (registrationName != null && registrationName!.isNotEmpty) {
           print('📝 Создаем нового пользователя (регистрация) с номером телефона: $phoneId');
+          final cpaMap = await CpaAttributionService.instance.takePendingForRegistration();
           user = _withNotificationDefaults(FirestoreUser(
             id: phoneId,
             phoneNumber: phoneNumber,
@@ -185,8 +187,9 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
             isVerified: true,
             rating: (registrationUserType ?? state.registrationUserType) == 'specialist' ? 0.0 : null,
             totalOrders: (registrationUserType ?? state.registrationUserType) == 'specialist' ? 0 : null,
-            onboardingIntents: onboardingIntents ?? 
+            onboardingIntents: onboardingIntents ??
                 (state.registrationIntentId != null ? [state.registrationIntentId!] : null),
+            cpaAttribution: cpaMap,
           ));
           
           // Сохраняем чувствительные данные на VPS (для граждан Узбекистана)
@@ -310,6 +313,7 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
       final now = DateTime.now();
       if (user == null) {
         // Создаем нового пользователя
+        final cpaMap = await CpaAttributionService.instance.takePendingForRegistration();
         final created = FirestoreUser(
           id: phoneNumber?.isNotEmpty == true ? phoneNumber! : oneIdSub,
           phoneNumber: phoneNumber ?? '',
@@ -329,6 +333,7 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
           isVerified: true,
           rating: (userType ?? state.registrationUserType) == 'specialist' ? 0.0 : null,
           totalOrders: (userType ?? state.registrationUserType) == 'specialist' ? 0 : null,
+          cpaAttribution: cpaMap,
         );
         final normalizedCreated = _withNotificationDefaults(created);
 
@@ -412,7 +417,9 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
 
       // Создаем нового пользователя (без Firebase Auth)
       final now = DateTime.now();
-      
+
+      final cpaMap = await CpaAttributionService.instance.takePendingForRegistration();
+
       // Формируем location для Firestore
       Map<String, dynamic>? locationData;
       if (location != null) {
@@ -444,6 +451,7 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
         isVerified: true,
         rating: userType == 'specialist' ? 0.0 : null,
         totalOrders: userType == 'specialist' ? 0 : null,
+        cpaAttribution: cpaMap,
       ));
 
       // Сохраняем чувствительные данные на VPS (Узбекистан)

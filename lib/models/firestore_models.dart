@@ -23,6 +23,9 @@ class FirestoreUser {
   final int? totalOrders; // количество заказов
   final List<String>? onboardingIntents; // Намерения пользователя при регистрации
 
+  /// CPA / партнёрская атрибуция (click_id, sub1…, utm_*) — заполняется при регистрации.
+  final Map<String, dynamic>? cpaAttribution;
+
   FirestoreUser({
     required this.id,
     required this.phoneNumber,
@@ -44,6 +47,7 @@ class FirestoreUser {
     this.rating,
     this.totalOrders,
     this.onboardingIntents,
+    this.cpaAttribution,
   });
 
   // Конвертация в Map для Firestore
@@ -69,6 +73,7 @@ class FirestoreUser {
       'rating': rating,
       'totalOrders': totalOrders,
       if (onboardingIntents != null) 'onboardingIntents': onboardingIntents,
+      if (cpaAttribution != null) 'cpaAttribution': cpaAttribution,
     };
   }
 
@@ -105,6 +110,9 @@ class FirestoreUser {
       onboardingIntents: map['onboardingIntents'] != null
           ? List<String>.from(map['onboardingIntents'])
           : null,
+      cpaAttribution: map['cpaAttribution'] != null
+          ? Map<String, dynamic>.from(map['cpaAttribution'] as Map)
+          : null,
     );
   }
 
@@ -130,6 +138,7 @@ class FirestoreUser {
     double? rating,
     int? totalOrders,
     List<String>? onboardingIntents,
+    Map<String, dynamic>? cpaAttribution,
   }) {
     return FirestoreUser(
       id: id ?? this.id,
@@ -152,6 +161,7 @@ class FirestoreUser {
       rating: rating ?? this.rating,
       totalOrders: totalOrders ?? this.totalOrders,
       onboardingIntents: onboardingIntents ?? this.onboardingIntents,
+      cpaAttribution: cpaAttribution ?? this.cpaAttribution,
     );
   }
 }
