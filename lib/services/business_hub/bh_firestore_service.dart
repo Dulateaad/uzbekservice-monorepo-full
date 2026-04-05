@@ -839,6 +839,8 @@ class BHFirestoreService {
     String? pipelineId,
     String? companyId,
     String? contactId,
+    BHDealType? dealType,
+    Map<String, dynamic>? saleContext,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
@@ -858,6 +860,8 @@ class BHFirestoreService {
       pipelineId: pipelineId,
       companyId: companyId,
       contactId: contactId,
+      dealType: dealType ?? BHDealType.new_,
+      saleContext: saleContext,
       createdAt: now,
       updatedAt: now,
     );

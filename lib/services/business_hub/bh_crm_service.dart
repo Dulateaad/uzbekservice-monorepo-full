@@ -63,6 +63,58 @@ class BHCrmService {
     return list.first.id;
   }
 
+  Future<BHCrmPipeline?> getPipeline(String pipelineId) async {
+    final doc = await _pipelines.doc(pipelineId).get();
+    if (!doc.exists) return null;
+    return BHCrmPipeline.fromMap(doc.data() as Map<String, dynamic>);
+  }
+
+  Future<void> updatePipeline(BHCrmPipeline p) async {
+    await _pipelines.doc(p.id).set(
+      p.copyWith(updatedAt: DateTime.now()).toMap(),
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Собирает параметры новой сделки из шаблона воронки.
+  /// Вызывается при создании сделки: результат передаётся в [BHFirestoreService.createDeal].
+  Future<({String? title, String? notes, BHDealType? dealType, Map<String, dynamic>? saleContext})>
+      resolvePipelineTemplate(String? pipelineId, {String? userTitle, String? userNotes}) async {
+    if (pipelineId == null || pipelineId.isEmpty) {
+      return (title: null, notes: null, dealType: null, saleContext: null);
+    }
+    final pipe = await getPipeline(pipelineId);
+    if (pipe == null) {
+      return (title: null, notes: null, dealType: null, saleContext: null);
+    }
+
+    String? mergedTitle;
+    if (pipe.defaultTitlePrefix != null && pipe.defaultTitlePrefix!.isNotEmpty) {
+      if (userTitle != null && userTitle.isNotEmpty) {
+        mergedTitle = '${pipe.defaultTitlePrefix}: $userTitle';
+      } else {
+        mergedTitle = pipe.defaultTitlePrefix;
+      }
+    }
+
+    final mergedNotes = (userNotes != null && userNotes.isNotEmpty)
+        ? userNotes
+        : pipe.defaultNotesTemplate;
+
+    BHDealType? dealType;
+    if (pipe.defaultDealType != null) {
+      dealType = BHDealType.values.where(
+        (e) => e.firestoreValue == pipe.defaultDealType || e.name == pipe.defaultDealType,
+      ).firstOrNull;
+    }
+
+    final ctx = pipe.contextDefaults.isNotEmpty
+        ? Map<String, dynamic>.from(pipe.contextDefaults)
+        : null;
+
+    return (title: mergedTitle, notes: mergedNotes, dealType: dealType, saleContext: ctx);
+  }
+
   // ── Companies / Contacts / Products ─────────────────────────
 
   Future<BHCrmCompany> createCompany({

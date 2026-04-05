@@ -10,6 +10,7 @@ import '../../../models/business_hub/crm_crm_task.dart';
 import '../../../models/business_hub/crm_subscription.dart';
 import '../../../models/business_hub/crm_notification.dart';
 import '../../../models/business_hub/crm_pipeline.dart';
+import '../../../models/business_hub/deal.dart' show BHDealType, BHDealTypeX;
 import '../../../providers/business_hub/bh_providers.dart';
 import '../../../providers/firestore_auth_provider.dart';
 
@@ -699,7 +700,14 @@ class _BHCrmPipelinesScreenState extends ConsumerState<BHCrmPipelinesScreen> {
                   return Card(
                     child: ListTile(
                       title: Text(p.name),
-                      subtitle: Text('Стадий: ${p.stageKeys.length}'),
+                      subtitle: Text('${p.scenarioLabel} · стадий: ${p.stageKeys.length}'),
+                      trailing: const Icon(Icons.edit, size: 20),
+                      onTap: () async {
+                        final updated = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(builder: (_) => _PipelineEditScreen(pipeline: p)),
+                        );
+                        if (updated == true) _load();
+                      },
                     ),
                   );
                 },
@@ -707,4 +715,186 @@ class _BHCrmPipelinesScreenState extends ConsumerState<BHCrmPipelinesScreen> {
             ),
     );
   }
+}
+
+/// Экран редактирования шаблона воронки.
+class _PipelineEditScreen extends ConsumerStatefulWidget {
+  const _PipelineEditScreen({required this.pipeline});
+  final BHCrmPipeline pipeline;
+
+  @override
+  ConsumerState<_PipelineEditScreen> createState() => _PipelineEditScreenState();
+}
+
+class _PipelineEditScreenState extends ConsumerState<_PipelineEditScreen> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _prefixCtrl;
+  late final TextEditingController _notesCtrl;
+  late String _scenario;
+  late String? _dealType;
+  final List<_KvEntry> _ctxEntries = [];
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.pipeline;
+    _nameCtrl = TextEditingController(text: p.name);
+    _prefixCtrl = TextEditingController(text: p.defaultTitlePrefix ?? '');
+    _notesCtrl = TextEditingController(text: p.defaultNotesTemplate ?? '');
+    _scenario = p.scenario;
+    _dealType = p.defaultDealType;
+    for (final e in p.contextDefaults.entries) {
+      _ctxEntries.add(_KvEntry(e.key, e.value.toString()));
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _prefixCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _saving = true);
+
+    final ctx = <String, dynamic>{};
+    for (final e in _ctxEntries) {
+      final k = e.key.trim();
+      if (k.isNotEmpty) ctx[k] = e.value.trim();
+    }
+
+    final updated = widget.pipeline.copyWith(
+      name: name,
+      scenario: _scenario,
+      defaultTitlePrefix: _prefixCtrl.text.trim().isEmpty ? null : _prefixCtrl.text.trim(),
+      clearDefaultTitlePrefix: _prefixCtrl.text.trim().isEmpty,
+      defaultNotesTemplate: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      clearDefaultNotesTemplate: _notesCtrl.text.trim().isEmpty,
+      defaultDealType: _dealType,
+      clearDefaultDealType: _dealType == null,
+      contextDefaults: ctx,
+      updatedAt: DateTime.now(),
+    );
+    await ref.read(bhCrmServiceProvider).updatePipeline(updated);
+    setState(() => _saving = false);
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scenarios = BHCrmPipeline.knownScenarios;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Настроить воронку'),
+        actions: [
+          if (_saving)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else
+            IconButton(icon: const Icon(Icons.check), onPressed: _save),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Название воронки')),
+          const SizedBox(height: 16),
+
+          DropdownButtonFormField<String>(
+            value: scenarios.containsKey(_scenario) ? _scenario : 'generic',
+            decoration: const InputDecoration(labelText: 'Сценарий / отрасль'),
+            items: scenarios.entries
+                .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                .toList(),
+            onChanged: (v) => setState(() => _scenario = v ?? 'generic'),
+          ),
+          const SizedBox(height: 16),
+
+          DropdownButtonFormField<String?>(
+            value: _dealType,
+            decoration: const InputDecoration(labelText: 'Тип сделки по умолчанию'),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Не задан')),
+              ...BHDealType.values.map((t) => DropdownMenuItem(value: t.firestoreValue, child: Text(t.label))),
+            ],
+            onChanged: (v) => setState(() => _dealType = v),
+          ),
+          const SizedBox(height: 16),
+
+          TextField(
+            controller: _prefixCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Префикс названия сделки',
+              hintText: 'Например: Банкет',
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          TextField(
+            controller: _notesCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Шаблон заметок',
+              hintText: 'Чеклист, формат и т.д.',
+            ),
+            maxLines: 5,
+          ),
+          const SizedBox(height: 24),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Контекст по умолчанию', style: Theme.of(context).textTheme.titleSmall),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 22),
+                onPressed: () => setState(() => _ctxEntries.add(_KvEntry('', ''))),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (int i = 0; i < _ctxEntries.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: const InputDecoration(labelText: 'Ключ', isDense: true),
+                      controller: TextEditingController(text: _ctxEntries[i].key)
+                        ..addListener(() {}),
+                      onChanged: (v) => _ctxEntries[i] = _KvEntry(v, _ctxEntries[i].value),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      decoration: const InputDecoration(labelText: 'Значение', isDense: true),
+                      controller: TextEditingController(text: _ctxEntries[i].value)
+                        ..addListener(() {}),
+                      onChanged: (v) => _ctxEntries[i] = _KvEntry(_ctxEntries[i].key, v),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, size: 20),
+                    onPressed: () => setState(() => _ctxEntries.removeAt(i)),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KvEntry {
+  String key;
+  String value;
+  _KvEntry(this.key, this.value);
 }

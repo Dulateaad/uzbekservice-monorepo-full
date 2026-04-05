@@ -577,23 +577,30 @@ class BHDealsNotifier extends StateNotifier<AsyncValue<List<BHDeal>>> {
     String? pipelineId,
     String? companyId,
     String? contactId,
+    Map<String, dynamic>? saleContext,
   }) async {
     if (_orgId == null) return;
     await _crm.ensureDefaultPipelines(_orgId!);
     final pid = pipelineId ?? await _crm.getDefaultPipelineId(_orgId!);
+
+    // Apply pipeline template defaults where user hasn't provided values.
+    final tmpl = await _crm.resolvePipelineTemplate(pid, userTitle: title, userNotes: notes);
+
     final deal = await _service.createDeal(
       organizationId: _orgId!,
-      title: title,
+      title: tmpl.title ?? title,
       amount: amount,
       counterpartyId: counterpartyId,
       counterpartyName: counterpartyName,
       leadId: leadId,
       assignedTo: assignedTo,
       expectedCloseDate: expectedCloseDate,
-      notes: notes,
+      notes: tmpl.notes ?? notes,
       pipelineId: pid,
       companyId: companyId,
       contactId: contactId,
+      dealType: tmpl.dealType,
+      saleContext: saleContext ?? tmpl.saleContext,
     );
     final current = state.valueOrNull ?? [];
     state = AsyncValue.data([deal, ...current]);

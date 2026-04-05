@@ -215,6 +215,13 @@ class _BHDealDetailScreenState extends ConsumerState<BHDealDetailScreen> {
                 ),
               ),
             ),
+            if (deal.saleContext != null && deal.saleContext!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _SaleContextCard(
+                context_: deal.saleContext!,
+                onEdit: () => _editSaleContext(deal),
+              ),
+            ],
             if (deal.nextAction != null || deal.nextActionDate != null) ...[
               const SizedBox(height: 12),
               Card(
@@ -884,6 +891,83 @@ class _BHDealDetailScreenState extends ConsumerState<BHDealDetailScreen> {
     );
   }
 
+  void _editSaleContext(BHDeal deal) {
+    final entries = (deal.saleContext ?? {}).entries.map((e) => MapEntry(e.key, e.value.toString())).toList();
+    final keyControllers = entries.map((e) => TextEditingController(text: e.key)).toList();
+    final valControllers = entries.map((e) => TextEditingController(text: e.value)).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Контекст продажи', style: Theme.of(ctx).textTheme.titleMedium),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: () {
+                        setSheetState(() {
+                          keyControllers.add(TextEditingController());
+                          valControllers.add(TextEditingController());
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                for (int i = 0; i < keyControllers.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(child: TextField(controller: keyControllers[i], decoration: const InputDecoration(labelText: 'Ключ', isDense: true))),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(controller: valControllers[i], decoration: const InputDecoration(labelText: 'Значение', isDense: true))),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline, size: 20),
+                          onPressed: () => setSheetState(() {
+                            keyControllers.removeAt(i);
+                            valControllers.removeAt(i);
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      final map = <String, dynamic>{};
+                      for (int i = 0; i < keyControllers.length; i++) {
+                        final k = keyControllers[i].text.trim();
+                        if (k.isNotEmpty) map[k] = valControllers[i].text.trim();
+                      }
+                      final updated = deal.copyWith(
+                        saleContext: map.isNotEmpty ? map : null,
+                        clearSaleContext: map.isEmpty,
+                      );
+                      ref.read(bhDealsProvider.notifier).update(updated);
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Сохранить'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
+
   void _deleteDeal(BHDeal deal) {
     showDialog(
       context: context,
@@ -960,6 +1044,45 @@ class _DealStageChip extends StatelessWidget {
             Text(stage.label, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600)),
             const SizedBox(width: 4),
             Icon(Icons.arrow_drop_down, size: 18, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SaleContextCard extends StatelessWidget {
+  final Map<String, dynamic> context_;
+  final VoidCallback onEdit;
+
+  const _SaleContextCard({required this.context_, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Контекст продажи', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppConstants.textSecondary)),
+                GestureDetector(onTap: onEdit, child: Icon(Icons.edit, size: 18, color: AppConstants.textSecondary)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            for (final e in context_.entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  children: [
+                    Text('${e.key}: ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    Expanded(child: Text('${e.value}', style: const TextStyle(fontSize: 13))),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -1143,16 +1266,42 @@ class _EditDealSheetState extends ConsumerState<_EditDealSheet> {
               onChanged: (v) => setState(() => _stage = v ?? _stage),
             ),
             const SizedBox(height: 12),
-            if (_pipelines.isNotEmpty)
+            if (_pipelines.isNotEmpty) ...[
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 4),
                 child: DropdownButtonFormField<String>(
                   value: _pipelineId != null && _pipelines.any((p) => p.id == _pipelineId) ? _pipelineId : _pipelines.first.id,
                   decoration: const InputDecoration(labelText: 'Воронка', border: OutlineInputBorder()),
-                  items: _pipelines.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                  items: _pipelines.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.scenarioLabel})'))).toList(),
                   onChanged: (v) => setState(() => _pipelineId = v),
                 ),
               ),
+              Builder(builder: (_) {
+                final pipe = _pipelines.where((p) => p.id == _pipelineId).firstOrNull;
+                if (pipe == null || (pipe.defaultTitlePrefix == null && pipe.defaultNotesTemplate == null && pipe.contextDefaults.isEmpty)) {
+                  return const SizedBox(height: 12);
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Card(
+                    color: Colors.blue.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Шаблон воронки', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue.shade800)),
+                          if (pipe.defaultTitlePrefix != null) Text('Префикс: ${pipe.defaultTitlePrefix}', style: const TextStyle(fontSize: 12)),
+                          if (pipe.defaultNotesTemplate != null) Text('Заметки: ${pipe.defaultNotesTemplate!.length > 60 ? '${pipe.defaultNotesTemplate!.substring(0, 60)}...' : pipe.defaultNotesTemplate}', style: const TextStyle(fontSize: 12)),
+                          if (pipe.contextDefaults.isNotEmpty)
+                            Text('Контекст: ${pipe.contextDefaults.entries.map((e) => '${e.key}=${e.value}').join(', ')}', style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
             DropdownButtonFormField<String?>(
               value: _companyId,
               decoration: const InputDecoration(labelText: 'Компания (CRM)', border: OutlineInputBorder()),

@@ -136,6 +136,9 @@ class BHDeal {
   final String? workId;
   final String? subscriptionId;
 
+  /// Контекст продажи, скопированный из шаблона воронки при создании сделки.
+  final Map<String, dynamic>? saleContext;
+
   const BHDeal({
     required this.id,
     required this.organizationId,
@@ -164,6 +167,7 @@ class BHDeal {
     this.operationId,
     this.workId,
     this.subscriptionId,
+    this.saleContext,
   });
 
   /// Просрочено следующее действие
@@ -201,6 +205,7 @@ class BHDeal {
       'operationId': operationId,
       'workId': workId,
       'subscriptionId': subscriptionId,
+      if (saleContext != null) 'saleContext': saleContext,
     };
   }
 
@@ -260,6 +265,9 @@ class BHDeal {
       operationId: map['operationId'],
       workId: map['workId'],
       subscriptionId: map['subscriptionId'],
+      saleContext: map['saleContext'] is Map
+          ? Map<String, dynamic>.from(map['saleContext'] as Map)
+          : null,
     );
   }
 
@@ -296,6 +304,8 @@ class BHDeal {
     bool clearOperationId = false,
     bool clearWorkId = false,
     bool clearSubscriptionId = false,
+    Map<String, dynamic>? saleContext,
+    bool clearSaleContext = false,
   }) {
     return BHDeal(
       id: id ?? this.id,
@@ -325,6 +335,7 @@ class BHDeal {
       operationId: clearOperationId ? null : (operationId ?? this.operationId),
       workId: clearWorkId ? null : (workId ?? this.workId),
       subscriptionId: clearSubscriptionId ? null : (subscriptionId ?? this.subscriptionId),
+      saleContext: clearSaleContext ? null : (saleContext ?? this.saleContext),
     );
   }
 }
