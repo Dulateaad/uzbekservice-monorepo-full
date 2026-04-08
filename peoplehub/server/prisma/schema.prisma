@@ -1,0 +1,416 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USERS ====================
+
+enum UserRole {
+  CLIENT
+  DRIVER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+}
+
+enum DriverStatus {
+  OFFLINE
+  ONLINE
+  BUSY       // В поездке
+  ARRIVING   // Едет к клиенту
+}
+
+model User {
+  id            String     @id @default(uuid())
+  telegramId    BigInt     @unique
+  telegramName  String?
+  firstName     String
+  lastName      String?
+  phone         String?
+  role          UserRole
+  status        UserStatus @default(ACTIVE)
+  avatarUrl     String?
+  
+  // Кодекс PeopleHub — принят ли
+  codexAccepted Boolean    @default(false)
+  codexAcceptedAt DateTime?
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Связи
+  trustScore    TrustScore?
+  driverProfile DriverProfile?
+  
+  tripsAsClient   Trip[]    @relation("ClientTrips")
+  tripsAsDriver   Trip[]    @relation("DriverTrips")
+  
+  sentMessages    ChatMessage[]  @relation("SentMessages")
+  
+  paymentsAsClient  Payment[]  @relation("ClientPayments")
+  paymentsAsDriver  Payment[]  @relation("DriverPayments")
+  
+  fraudLogs       FraudLog[]
+  
+  givenRatings    Rating[]   @relation("RaterRatings")
+  receivedRatings Rating[]   @relation("RatedRatings")
+  
+  locationHistory LocationLog[]
+
+  @@index([telegramId])
+  @@index([role, status])
+}
+
+// ==================== DRIVER PROFILE ====================
+
+model DriverProfile {
+  id            String       @id @default(uuid())
+  userId        String       @unique
+  user          User         @relation(fields: [userId], references: [id])
+  
+  // Данные автомобиля
+  carBrand      String
+  carModel      String
+  carColor      String
+  carYear       Int
+  licensePlate  String
+  
+  // Документы
+  driverLicense String?      // URL фото
+  carRegistration String?    // URL фото
+  
+  // Статус водителя
+  driverStatus  DriverStatus @default(OFFLINE)
+  isVerified    Boolean      @default(false)
+  
+  // Абонентка
+  subscriptionActive Boolean @default(false)
+  subscriptionExpiresAt DateTime?
+  
+  // Текущая геолокация
+  currentLat    Float?
+  currentLng    Float?
+  lastLocationAt DateTime?
+  
+  // Настройки
+  maxRadius     Int          @default(10) // км, радиус приёма заказов
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([driverStatus])
+  @@index([currentLat, currentLng])
+}
+
+// ==================== TRIPS ====================
+
+enum TripStatus {
+  SEARCHING       // Ищем водителя
+  DRIVER_ASSIGNED // Водитель назначен
+  DRIVER_ARRIVING // Водитель едет
+  DRIVER_ARRIVED  // Водитель на месте
+  WAITING_PAYMENT // Ожидание оплаты
+  PAID            // Оплачено
+  IN_PROGRESS     // Поездка началась
+  COMPLETED       // Завершена
+  CANCELLED       // Отменена
+  NO_DRIVER       // Не нашли водителя
+}
+
+model Trip {
+  id            String     @id @default(uuid())
+  
+  // Участники
+  clientId      String
+  client        User       @relation("ClientTrips", fields: [clientId], references: [id])
+  driverId      String?
+  driver        User?      @relation("DriverTrips", fields: [driverId], references: [id])
+  
+  // Маршрут
+  pickupLat     Float
+  pickupLng     Float
+  pickupAddress String
+  dropoffLat    Float
+  dropoffLng    Float
+  dropoffAddress String
+  
+  // Расчёт
+  distanceKm    Float      // Расстояние в км
+  estimatedMinutes Int     // Оценка времени
+  price         Int        // Цена в тенге (целое число)
+  
+  // Статусы
+  status        TripStatus @default(SEARCHING)
+  
+  // Временные метки
+  driverAssignedAt  DateTime?
+  driverArrivedAt   DateTime?
+  paidAt            DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  cancelledBy       String?  // userId кто отменил
+  
+  // Фактические данные
+  actualDistanceKm  Float?
+  actualMinutes     Int?
+  waitMinutes       Int?     // Время ожидания клиента
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  // Связи
+  payment       Payment?
+  chatMessages  ChatMessage[]
+  locationLogs  LocationLog[]
+  ratings       Rating[]
+  fraudLogs     FraudLog[]
+
+  @@index([clientId])
+  @@index([driverId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== PAYMENTS ====================
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethod {
+  CARD
+  KASPI       // Kaspi перевод
+  CASH_DEPOSIT // Пополнение баланса
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  
+  tripId        String        @unique
+  trip          Trip          @relation(fields: [tripId], references: [id])
+  
+  clientId      String
+  client        User          @relation("ClientPayments", fields: [clientId], references: [id])
+  driverId      String
+  driver        User          @relation("DriverPayments", fields: [driverId], references: [id])
+  
+  amount        Int           // Сумма в тенге
+  status        PaymentStatus @default(PENDING)
+  method        PaymentMethod
+  
+  // Внешний ID транзакции
+  externalId    String?
+  
+  paidAt        DateTime?
+  refundedAt    DateTime?
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([driverId])
+  @@index([status])
+}
+
+// ==================== TRUST SCORE ====================
+
+model TrustScore {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  
+  score         Float    @default(4.5)  // Начальный рейтинг
+  totalTrips    Int      @default(0)
+  totalRatings  Int      @default(0)
+  
+  // Положительные метрики
+  fiveStarCount    Int   @default(0)
+  punctualityBonus Float @default(0)
+  cleanStreak      Int   @default(0)  // Дни без нарушений
+  
+  // Отрицательные метрики  
+  cancellations    Int   @default(0)
+  noShows          Int   @default(0)
+  rudeReports      Int   @default(0)
+  fraudAttempts    Int   @default(0)
+  
+  lastUpdatedAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // История изменений
+  history       TrustScoreHistory[]
+
+  @@index([score])
+}
+
+model TrustScoreHistory {
+  id            String   @id @default(uuid())
+  trustScoreId  String
+  trustScore    TrustScore @relation(fields: [trustScoreId], references: [id])
+  
+  previousScore Float
+  newScore      Float
+  reason        String   // Описание причины изменения
+  delta         Float    // Изменение (+/-)
+  
+  createdAt     DateTime @default(now())
+
+  @@index([trustScoreId])
+  @@index([createdAt])
+}
+
+// ==================== RATINGS ====================
+
+model Rating {
+  id          String   @id @default(uuid())
+  
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id])
+  
+  raterId     String   // Кто оценивает
+  rater       User     @relation("RaterRatings", fields: [raterId], references: [id])
+  ratedId     String   // Кого оценивают
+  rated       User     @relation("RatedRatings", fields: [ratedId], references: [id])
+  
+  score       Int      // 1-5
+  comment     String?
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([tripId, raterId])
+  @@index([ratedId])
+}
+
+// ==================== CHAT ====================
+
+enum MessageType {
+  TEXT
+  VOICE
+  LOCATION
+  TEMPLATE    // Быстрые шаблоны
+  SYSTEM      // Системные сообщения
+}
+
+model ChatMessage {
+  id          String      @id @default(uuid())
+  
+  tripId      String
+  trip        Trip        @relation(fields: [tripId], references: [id])
+  
+  senderId    String
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id])
+  
+  type        MessageType @default(TEXT)
+  content     String      // Текст или URL голосового
+  
+  // Для геопозиции
+  lat         Float?
+  lng         Float?
+  
+  isRead      Boolean     @default(false)
+  
+  createdAt   DateTime    @default(now())
+
+  @@index([tripId, createdAt])
+}
+
+// ==================== GPS / LOCATION ====================
+
+model LocationLog {
+  id          String   @id @default(uuid())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  tripId      String?
+  trip        Trip?    @relation(fields: [tripId], references: [id])
+  
+  lat         Float
+  lng         Float
+  accuracy    Float    // Точность GPS в метрах
+  speed       Float?   // Скорость в км/ч
+  heading     Float?   // Направление
+  
+  isMockLocation Boolean @default(false) // Детект mock GPS
+  
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([tripId, createdAt])
+}
+
+// ==================== FRAUD DETECTION ====================
+
+enum FraudType {
+  GPS_SPOOF           // Фейковый GPS
+  FAKE_ARRIVAL        // Ложное "На месте"
+  FAKE_START          // Старт без клиента
+  FAKE_WAIT           // Фейковое ожидание
+  FAKE_NO_SHOW        // Ложный "Не вышел"
+  SPEED_ANOMALY       // Аномальная скорость
+  PAYMENT_FRAUD       // Мошенничество с оплатой
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model FraudLog {
+  id          String        @id @default(uuid())
+  
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  
+  tripId      String?
+  trip        Trip?         @relation(fields: [tripId], references: [id])
+  
+  type        FraudType
+  severity    FraudSeverity
+  description String
+  
+  // Данные для расследования
+  metadata    Json?         // GPS данные, скорости и т.д.
+  
+  // Результат
+  autoResolved  Boolean     @default(false)
+  penaltyApplied Float?     // Штраф к TrustScore
+  
+  createdAt   DateTime      @default(now())
+
+  @@index([userId])
+  @@index([tripId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ==================== DRIVER SUBSCRIPTION ====================
+
+model DriverSubscription {
+  id          String   @id @default(uuid())
+  driverProfileId String
+  
+  amount      Int      // 200 тг
+  paidAt      DateTime
+  expiresAt   DateTime
+  
+  createdAt   DateTime @default(now())
+
+  @@index([driverProfileId])
+  @@index([expiresAt])
+}

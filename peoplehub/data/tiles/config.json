@@ -1,0 +1,23 @@
+{
+  "options": {
+    "paths": {
+      "root": "/data",
+      "fonts": "fonts",
+      "styles": "styles",
+      "mbtiles": ""
+    }
+  },
+  "styles": {
+    "basic": {
+      "style": "styles/style.json",
+      "tilejson": {
+        "bounds": [46.49, 40.57, 87.36, 55.44]
+      }
+    }
+  },
+  "data": {
+    "kazakhstan": {
+      "mbtiles": "kazakhstan.mbtiles"
+    }
+  }
+}

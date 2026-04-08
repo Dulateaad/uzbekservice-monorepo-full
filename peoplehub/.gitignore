@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+build/
+functions/lib/
+
+# Firebase
+.firebase/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Environment files (SECRETS!)
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+client/.env
+server/.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+coverage/
+
+# Prisma
+server/prisma/migrations/**/migration.sql.bak
+
+# Docker volumes
+postgres_data/
+redis_data/

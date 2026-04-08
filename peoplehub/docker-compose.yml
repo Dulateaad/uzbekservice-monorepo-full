@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  # ==================== DATABASE ====================
+
+  # PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: peoplehub-db
+    environment:
+      POSTGRES_USER: peoplehub
+      POSTGRES_PASSWORD: peoplehub
+      POSTGRES_DB: peoplehub
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U peoplehub']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: peoplehub-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== SELF-HOSTED MAPS ====================
+
+  # Tile Server — serves vector map tiles (OpenMapTiles MBTiles)
+  tileserver:
+    image: maptiler/tileserver-gl:v4.6.6
+    container_name: peoplehub-tiles
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./data/tiles:/data
+    command: --config /data/config.json --port 8080
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8080/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # OSRM — routing engine (directions, distance, duration)
+  osrm:
+    image: osrm/osrm-backend:v5.27.1
+    container_name: peoplehub-osrm
+    ports:
+      - '5000:5000'
+    volumes:
+      - ./data/osrm:/data
+    command: osrm-routed --algorithm mld /data/kazakhstan-latest.osrm
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:5000/nearest/v1/driving/76.945,43.238']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Nominatim — geocoding (address search, reverse geocoding)
+  nominatim:
+    image: mediagis/nominatim:4.4
+    container_name: peoplehub-nominatim
+    ports:
+      - '8088:8080'
+    environment:
+      PBF_URL: https://download.geofabrik.de/asia/kazakhstan-latest.osm.pbf
+      REPLICATION_URL: https://download.geofabrik.de/asia/kazakhstan-updates/
+      NOMINATIM_PASSWORD: peoplehub
+      IMPORT_STYLE: full
+      THREADS: 4
+    volumes:
+      - nominatim_data:/var/lib/postgresql/14/main
+      - nominatim_flatnode:/nominatim/flatnode
+    shm_size: 1g
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8080/status']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+  # ==================== APP ====================
+
+  # Backend API
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: peoplehub-server
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://peoplehub:peoplehub@postgres:5432/peoplehub?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      PORT: 3000
+    env_file:
+      - ./server/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Frontend (built and served with nginx in production)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: peoplehub-client
+    ports:
+      - '80:80'
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  redis_data:
+  nominatim_data:
+  nominatim_flatnode:

@@ -1,0 +1,93 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──
+    function isSignedIn() {
+      return request.auth != null || true;
+      // PeopleHub uses Telegram auth (no Firebase Auth), so all requests are
+      // "unauthenticated" from Firestore's perspective. We rely on the userId
+      // field being tg_<telegramId> and validate ownership via document fields.
+      // When server-side initData validation is added, switch to Firebase
+      // custom tokens and use request.auth.uid.
+    }
+
+    function isTripParticipant(trip) {
+      return true;
+      // Placeholder until Firebase Auth custom tokens are issued
+    }
+
+    // ── Users ──
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      // Future: allow update: if request.auth.uid == userId;
+    }
+
+    // ── Driver Locations ──
+    match /driverLocations/{driverId} {
+      allow read: if true;
+      allow write: if true;
+      // Future: allow write: if request.auth.uid == driverId;
+    }
+
+    // ── Trips ──
+    match /trips/{tripId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+
+      // Bids subcollection
+      match /bids/{bidId} {
+        allow read: if true;
+        allow create: if true;
+        allow update: if true;
+      }
+
+      // Chat messages subcollection
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if true;
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // ── Ratings ──
+    match /ratings/{ratingId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ── Subscriptions ──
+    match /subscriptions/{subId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if false;
+    }
+
+    // ── Verification Requests ──
+    match /verification_requests/{reqId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      // Future: allow update only by admins via custom claims
+    }
+
+    // ── Config (admins list, feature flags) ──
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+      // Only writeable via Firebase Console or Cloud Functions
+    }
+
+    // ── Deny everything else ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

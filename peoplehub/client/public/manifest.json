@@ -1,0 +1,12 @@
+{
+  "name": "PeopleHub",
+  "short_name": "PeopleHub",
+  "description": "Платформа взаимного уважения — поездки, недвижимость, авто, туризм",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait",
+  "icons": [],
+  "categories": ["transportation", "lifestyle"]
+}

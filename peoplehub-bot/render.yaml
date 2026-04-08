@@ -1,0 +1,20 @@
+services:
+  - type: worker
+    name: peoplehub-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: WEB_APP_URL
+        value: https://taxi-eb8b7.web.app
+      - key: STARS_PER_DAY
+        value: "33"
+      - key: STARS_PER_MONTH
+        value: "600"
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: taxi-eb8b7

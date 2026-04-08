@@ -1,0 +1,18 @@
+{
+  "name": "peoplehub-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for PeopleHub taxi mini-app",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "node --watch src/bot.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "firebase": "^12.9.0",
+    "grammy": "^1.35.0"
+  }
+}
