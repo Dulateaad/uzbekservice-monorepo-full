@@ -1,7 +1,31 @@
-import { db } from "./config/firebase";
+import { db, admin } from "./config/firebase";
 import { config } from "./config";
 
 const BOT_TOKEN = config.telegramBotToken;
+
+async function sendPushNotification(userId: string, title: string, body: string): Promise<boolean> {
+  try {
+    const userSnap = await db.collection("users").doc(userId).get();
+    if (!userSnap.exists) return false;
+    const fcmToken = userSnap.data()?.fcmToken;
+    if (!fcmToken) return false;
+
+    await admin.messaging().send({
+      token: fcmToken,
+      notification: { title, body },
+      webpush: {
+        notification: { icon: "/icons/tariff-econom.png", badge: "/icons/tariff-econom.png" },
+      },
+    });
+    return true;
+  } catch (err: any) {
+    if (err?.code === "messaging/registration-token-not-registered") {
+      await db.collection("users").doc(userId).update({ fcmToken: null });
+    }
+    console.error("Push notification failed:", err?.message || err);
+    return false;
+  }
+}
 
 async function sendTelegramMessage(chatId: string | number, text: string): Promise<boolean> {
   if (!BOT_TOKEN) {
@@ -54,16 +78,45 @@ export async function notifyDriversNewTrip(tripData: {
 
   let sent = 0;
   const promises = driversSnap.docs.map(async (d) => {
-    const telegramId = d.data().telegramId;
+    const data = d.data();
+    const telegramId = data.telegramId;
     if (telegramId) {
       const ok = await sendTelegramMessage(telegramId, text);
       if (ok) sent++;
     }
+    await sendPushNotification(d.id, "Новый заказ!", `📍 ${tripData.pickupAddress} · ${tripData.price} тг`);
   });
   await Promise.allSettled(promises);
 
   console.log(`Notified ${sent}/${driversSnap.size} drivers about new trip`);
   return sent;
+}
+
+/**
+ * Notify the client (passenger) that a new bid arrived.
+ */
+export async function notifyClientNewBid(clientId: string, bidData: {
+  driverName: string;
+  price: number;
+}): Promise<boolean> {
+  if (!BOT_TOKEN) return false;
+
+  const userSnap = await db.collection("users").doc(clientId).get();
+  if (!userSnap.exists) return false;
+  const telegramId = userSnap.data()?.telegramId;
+  if (!telegramId) return false;
+
+  const text =
+    `🔔 <b>Новый отклик!</b>\n` +
+    `👤 ${bidData.driverName || "Водитель"}\n` +
+    `💰 ${bidData.price} тг\n` +
+    `\nОткройте приложение, чтобы принять или выбрать другого.`;
+
+  const [tgOk] = await Promise.allSettled([
+    sendTelegramMessage(telegramId, text),
+    sendPushNotification(clientId, "Новый отклик!", `${bidData.driverName || "Водитель"} — ${bidData.price} тг`),
+  ]);
+  return tgOk.status === "fulfilled" && tgOk.value;
 }
 
 /**
@@ -84,6 +137,7 @@ export async function notifyTripStatusChange(
 
   const messages: Record<string, string> = {
     DRIVER_ASSIGNED: `✅ Водитель ${extra?.driverName || ""} принял ваш заказ! Цена: ${extra?.price || 0} тг`,
+    DRIVER_ASSIGNED_DRIVER: `🎉 Пассажир принял вашу заявку! Цена: ${extra?.price || 0} тг. Откройте приложение.`,
     DRIVER_ARRIVING: `🚗 Водитель выехал к вам`,
     DRIVER_ARRIVED: `📍 Водитель на месте, выходите`,
     IN_PROGRESS: `🛣 Поездка началась`,
@@ -95,5 +149,20 @@ export async function notifyTripStatusChange(
   const text = messages[newStatus];
   if (!text) return false;
 
-  return sendTelegramMessage(telegramId, text);
+  const pushTitle: Record<string, string> = {
+    DRIVER_ASSIGNED: "Водитель найден!",
+    DRIVER_ASSIGNED_DRIVER: "Заявка принята!",
+    DRIVER_ARRIVING: "Водитель едет",
+    DRIVER_ARRIVED: "Водитель на месте",
+    IN_PROGRESS: "Поездка началась",
+    COMPLETED: "Поездка завершена",
+    CANCELLED: "Поездка отменена",
+    NO_DRIVER: "Водитель не найден",
+  };
+
+  await Promise.allSettled([
+    sendTelegramMessage(telegramId, text),
+    sendPushNotification(userId, pushTitle[newStatus] || "PeopleHub", text.replace(/<[^>]*>/g, "")),
+  ]);
+  return true;
 }

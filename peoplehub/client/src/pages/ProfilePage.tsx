@@ -146,7 +146,11 @@ export default function ProfilePage() {
               </span>
             )}
           </button>
-          <p className="text-xs text-tg-hint mb-1">Нажмите, чтобы сфотографировать себя</p>
+          <p className="text-xs text-tg-hint mb-1">
+            {user.role === 'DRIVER'
+              ? 'Селфи через камеру — обязательно для выхода на линию'
+              : 'Нажмите, чтобы сфотографировать себя'}
+          </p>
           <h3 className="text-xl font-bold text-tg-text">
             {user.firstName} {user.lastName}
           </h3>
@@ -156,6 +160,25 @@ export default function ProfilePage() {
             <TrustBadge score={user.trustScore} size="lg" showLabel />
           </div>
         </div>
+
+        {user.role === 'DRIVER' && (
+          <div className="bg-tg-secondaryBg rounded-2xl p-4 mb-4 border border-gray-100">
+            <p className="text-sm font-semibold text-tg-text mb-2">Для линии — два шага</p>
+            <ol className="text-xs text-tg-hint space-y-1.5 list-decimal list-inside">
+              <li>Верификация авто (техпаспорт и фото машины) в разделе верификации.</li>
+              <li>Селфи в профиле только через камеру — без него на линию нельзя.</li>
+            </ol>
+          </div>
+        )}
+
+        {user.role === 'DRIVER' && !(user as any).selfieAvatarAt && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+            <p className="text-sm font-semibold text-amber-900">Селфи в профиле</p>
+            <p className="text-xs text-amber-800 mt-1">
+              Нажмите на аватар выше и сфотографируйте себя. Аватар из Telegram для линии не подходит.
+            </p>
+          </div>
+        )}
 
         {/* Рейтинг уважения */}
         <div className="bg-tg-secondaryBg rounded-2xl p-4 mb-4">
@@ -183,7 +206,7 @@ export default function ProfilePage() {
             <div className="space-y-2">
               <TrustRow
                 label="Автомобиль"
-                value={`${user.driverProfile.carBrand} ${user.driverProfile.carModel}`}
+                value={`${user.driverProfile.carBrand} ${user.driverProfile.carModel}${user.driverProfile.carYear ? ` · ${user.driverProfile.carYear} г.` : ''}`}
               />
               <TrustRow label="Цвет" value={user.driverProfile.carColor} />
               <TrustRow label="Гос. номер" value={user.driverProfile.licensePlate} />

@@ -12,6 +12,8 @@ export interface User {
   status: 'ACTIVE' | 'SUSPENDED' | 'BLOCKED';
   codexAccepted: boolean;
   avatarUrl?: string;
+  /** Селфи загружено через приложение (камера) — нужно для линии водителя */
+  selfieAvatarAt?: unknown;
   trustScore: number;
   city?: string;
   cityLat?: number;

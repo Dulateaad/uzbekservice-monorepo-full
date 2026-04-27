@@ -10,7 +10,7 @@ import driverRoutes from "./routes/driver";
 import chatRoutes from "./routes/chat";
 import { processVerificationImage } from "./ocr";
 import { expireStaleTrips } from "./scheduled";
-import { notifyDriversNewTrip, notifyTripStatusChange } from "./notifications";
+import { notifyDriversNewTrip, notifyTripStatusChange, notifyClientNewBid } from "./notifications";
 
 const app = express();
 
@@ -94,6 +94,37 @@ export const tripCreated = onDocumentCreated("trips/{tripId}", async (event) => 
   }
 });
 
+// Firestore trigger: notify passenger when a driver bids
+export const bidCreated = onDocumentCreated("trips/{tripId}/bids/{bidId}", async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+  const bid = snap.data();
+  const tripId = event.params.tripId;
+
+  try {
+    const { db: adminDb } = await import("./config/firebase");
+    const tripSnap = await adminDb.collection("trips").doc(tripId).get();
+    if (!tripSnap.exists) return;
+    const trip = tripSnap.data()!;
+
+    let driverName = "";
+    try {
+      const driverSnap = await adminDb.collection("users").doc(bid.driverId).get();
+      if (driverSnap.exists) {
+        const d = driverSnap.data()!;
+        driverName = [d.firstName, d.lastName].filter(Boolean).join(" ");
+      }
+    } catch {}
+
+    await notifyClientNewBid(trip.clientId, {
+      driverName,
+      price: bid.price || 0,
+    });
+  } catch (err) {
+    console.error("bidCreated notification error:", err);
+  }
+});
+
 // Firestore trigger: notify participants on trip status change
 export const tripUpdated = onDocumentUpdated("trips/{tripId}", async (event) => {
   const change = event.data;
@@ -107,6 +138,13 @@ export const tripUpdated = onDocumentUpdated("trips/{tripId}", async (event) => 
   if (["DRIVER_ASSIGNED", "DRIVER_ARRIVING", "DRIVER_ARRIVED", "COMPLETED", "NO_DRIVER"].includes(after.status)) {
     await notifyTripStatusChange(after.clientId, tripId, after.status, {
       driverName: after.driverName,
+      price: after.finalPrice || after.price,
+    });
+  }
+
+  // Notify driver when bid is accepted
+  if (after.status === "DRIVER_ASSIGNED" && after.driverId) {
+    await notifyTripStatusChange(after.driverId, tripId, "DRIVER_ASSIGNED_DRIVER", {
       price: after.finalPrice || after.price,
     });
   }

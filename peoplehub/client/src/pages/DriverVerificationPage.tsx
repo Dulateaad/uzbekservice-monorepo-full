@@ -9,9 +9,11 @@ import { useTelegram } from "../hooks/useTelegram";
 import Button from "../components/common/Button";
 import CameraAvatarCapture, { type CameraOverlayType } from "../components/profile/CameraAvatarCapture";
 import {
+  db,
   uploadVerificationFile,
   createVerificationRequest,
   getVerificationByDriver,
+  getMe,
   processVerificationImageViaFunction,
   VERIFICATION_DOC_TYPES,
   VERIFICATION_PHOTO_KEYS,
@@ -22,7 +24,6 @@ import {
   extractDocument, extractDocumentLicense, extractPhoto, runTariffChecklist, loadBusinessWhitelist,
   TARIFF_NAMES, type OcrResult, type VerificationVerdict, type TariffLevel,
 } from "../utils/ocr";
-import { db } from "../services/firebase";
 
 const DOC_LABELS: Record<string, string> = {
   techPassport: "Техпаспорт",
@@ -30,26 +31,23 @@ const DOC_LABELS: Record<string, string> = {
 };
 
 const PHOTO_LABELS: Record<string, string> = {
-  left: "Сбоку слева",
-  right: "Сбоку справа",
-  rear: "Сзади",
   front: "Спереди",
-  interiorFront: "Салон + сиденье",
-  rearSeat: "Сиденье сзади",
+  rear: "Сзади",
+  left: "Слева",
+  right: "Справа",
+  interiorFront: "Салон спереди",
+  interiorRear: "Салон сзади",
   trunk: "Багажник",
-  extra: "Дополнительно",
 };
 
-/** Контур камеры под ракурс авто */
 const PHOTO_KEY_TO_OVERLAY: Record<string, CameraOverlayType> = {
   front: "car-front",
   rear: "car-rear",
   left: "car-side-left",
   right: "car-side-right",
   interiorFront: "car-interior",
-  rearSeat: "car-seat",
+  interiorRear: "car-seat",
   trunk: "car-trunk",
-  extra: "car-extra",
 };
 
 const TARIFF_COLORS: Record<TariffLevel, string> = {
@@ -63,7 +61,7 @@ type Step = "docs" | "photos" | "uploading" | "result";
 
 export default function DriverVerificationPage() {
   const navigate = useNavigate();
-  const { user, userId } = useStore();
+  const { user, userId, setAuth } = useStore();
   const { tg } = useTelegram();
 
   const [step, setStep] = useState<Step>("docs");
@@ -75,6 +73,7 @@ export default function DriverVerificationPage() {
   const [progressText, setProgressText] = useState("");
   const [error, setError] = useState("");
   const [verdict, setVerdict] = useState<VerificationVerdict | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [capturingFor, setCapturingFor] = useState<{ group: "doc" | "photo"; key: string } | null>(null);
   const captureTargetRef = useRef<{ group: "doc" | "photo"; key: string } | null>(null);
   const [docPreviewUrls, setDocPreviewUrls] = useState<Record<string, string>>({});
@@ -111,8 +110,8 @@ export default function DriverVerificationPage() {
       photoPreviewUrlsRef.current = {};
     };
   }, [
-    photoFiles.left, photoFiles.right, photoFiles.rear, photoFiles.front,
-    photoFiles.interiorFront, photoFiles.rearSeat, photoFiles.trunk, photoFiles.extra,
+    photoFiles.front, photoFiles.rear, photoFiles.left, photoFiles.right,
+    photoFiles.interiorFront, photoFiles.interiorRear, photoFiles.trunk,
   ]);
 
   useEffect(() => {
@@ -128,6 +127,22 @@ export default function DriverVerificationPage() {
     setError("");
   };
 
+  async function handleContinueAfterVerification() {
+    try {
+      setLeaving(true);
+      tg?.HapticFeedback?.impactOccurred("medium");
+      if (userId) {
+        const me = await getMe(userId);
+        setAuth(me as any);
+      }
+    } catch {
+      /* всё равно уходим с экрана */
+    } finally {
+      navigate("/driver", { replace: true });
+      setLeaving(false);
+    }
+  }
+
   function handleCaptureFromCamera(blob: Blob) {
     const target = captureTargetRef.current || capturingFor;
     if (!target) return;
@@ -141,7 +156,7 @@ export default function DriverVerificationPage() {
   const photoCount = VERIFICATION_PHOTO_KEYS.filter((k) => photoFiles[k]).length;
 
   async function handleSubmit() {
-    if (!allDocsFilled || photoCount < 6 || !userId || !user) return;
+    if (!allDocsFilled || photoCount < 7 || !userId || !user) return;
     setLoading(true);
     setStep("uploading");
     setError("");
@@ -207,6 +222,15 @@ export default function DriverVerificationPage() {
         verdict: v,
       });
 
+      if (v.approved && userId) {
+        try {
+          const me = await getMe(userId);
+          setAuth(me as any);
+        } catch {
+          /* профиль подтянется на экране водителя */
+        }
+      }
+
       tg?.HapticFeedback?.notificationOccurred(v.approved ? "success" : "warning");
       setStep("result");
     } catch (err: any) {
@@ -253,35 +277,36 @@ export default function DriverVerificationPage() {
     const finalTariff = existingRequest.moderatorTariff || aiTariff;
 
     return (
-      <div className="min-h-screen bg-gray-50 p-6 safe-area">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-600 mb-6">
-          <ArrowLeft size={20} /> Назад
-        </button>
+      <div className="min-h-screen bg-gray-50 flex flex-col safe-area">
+        <div className="p-6 flex-1 min-h-0 overflow-y-auto pb-28">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-600 mb-6">
+            <ArrowLeft size={20} /> Назад
+          </button>
 
-        {s === "approved" && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-3" />
-            <h2 className="text-xl font-bold text-green-800">Верификация пройдена</h2>
-            {finalTariff && (
-              <div className="mt-3">
-                <span className="text-sm text-green-700">Максимальный тариф:</span>
-                <div className={`inline-block ml-2 px-3 py-1 rounded-full text-white text-sm font-bold ${TARIFF_COLORS[finalTariff as TariffLevel] || "bg-gray-500"}`}>
-                  {TARIFF_NAMES[finalTariff as TariffLevel] || finalTariff}
+          {s === "approved" && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-3" />
+              <h2 className="text-xl font-bold text-green-800">Верификация пройдена</h2>
+              {finalTariff && (
+                <div className="mt-3">
+                  <span className="text-sm text-green-700">Максимальный тариф:</span>
+                  <div className={`inline-block ml-2 px-3 py-1 rounded-full text-white text-sm font-bold ${TARIFF_COLORS[finalTariff as TariffLevel] || "bg-gray-500"}`}>
+                    {TARIFF_NAMES[finalTariff as TariffLevel] || finalTariff}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
 
-        {s === "pending_moderation" && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
-            <Loader2 className="w-16 h-16 text-amber-500 mx-auto mb-3 animate-spin" />
-            <h2 className="text-xl font-bold text-amber-800">Обработка</h2>
-            <p className="text-amber-700 mt-1 text-sm">
-              Тариф: <strong>{TARIFF_NAMES[aiTariff as TariffLevel] || "Народный"}</strong>
-            </p>
-          </div>
-        )}
+          {s === "pending_moderation" && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+              <Loader2 className="w-16 h-16 text-amber-500 mx-auto mb-3 animate-spin" />
+              <h2 className="text-xl font-bold text-amber-800">Обработка</h2>
+              <p className="text-amber-700 mt-1 text-sm">
+                Тариф: <strong>{TARIFF_NAMES[aiTariff as TariffLevel] || "Народный"}</strong>
+              </p>
+            </div>
+          )}
 
         {s === "rejected" && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
@@ -295,6 +320,21 @@ export default function DriverVerificationPage() {
             </Button>
           </div>
         )}
+        </div>
+
+        {(s === "approved" || s === "pending_moderation") && (
+          <div className="shrink-0 sticky bottom-0 left-0 right-0 p-4 pt-2 bg-gray-50 border-t border-gray-200 safe-bottom z-10">
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              loading={leaving}
+              onClick={() => void handleContinueAfterVerification()}
+            >
+              Окей, дальше
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -303,7 +343,8 @@ export default function DriverVerificationPage() {
 
   if (step === "result" && verdict) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 safe-area">
+      <div className="min-h-screen bg-gray-50 flex flex-col safe-area">
+        <div className="flex-1 overflow-y-auto p-6 pb-28">
         <div className="text-center mb-6">
           {verdict.approved ? (
             <>
@@ -383,10 +424,34 @@ export default function DriverVerificationPage() {
             ))}
           </div>
         </div>
+        </div>
 
-        <Button fullWidth size="lg" onClick={() => navigate("/hub")}>
-          На главную
-        </Button>
+        <div className="shrink-0 sticky bottom-0 left-0 right-0 p-4 pt-2 bg-gray-50 border-t border-gray-200 safe-bottom z-10">
+          {verdict.approved ? (
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              loading={leaving}
+              onClick={() => void handleContinueAfterVerification()}
+            >
+              Окей, дальше
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              onClick={() => {
+                tg?.HapticFeedback?.impactOccurred("light");
+                setVerdict(null);
+                setStep("photos");
+              }}
+            >
+              Исправить и отправить снова
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -483,73 +548,64 @@ export default function DriverVerificationPage() {
 
       {step === "photos" && (
         <div className="p-4 space-y-3">
-          {/* Заголовок в стиле чек-листа */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Фото авто (мин. 6)
+              Фото авто
             </h3>
             <span className={`text-xs font-bold ${
-              photoCount >= 6 ? "text-green-600" : "text-amber-600"
+              photoCount >= 7 ? "text-green-600" : "text-amber-600"
             }`}>
-              {photoCount} / 8
+              {photoCount} / {VERIFICATION_PHOTO_KEYS.length}
             </span>
           </div>
-          <p className="text-sm text-gray-500 mb-3">
-            Только камера телефона (галерея отключена). Чёткие фото при дневном свете. Каждый ракурс — 1 снимок. Минимум 6 из 8 — пассажиры увидят эти фото в поездке.
+          <p className="text-sm text-gray-500 mb-2">
+            Нажмите на квадрат, чтобы сфотографировать камерой. Все 7 фото обязательны.
           </p>
 
-          {/* Чек-лист в стиле PeopleHub */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          {/* Square grid */}
+          <div className="grid grid-cols-2 gap-3">
             {VERIFICATION_PHOTO_KEYS.map((key) => {
               const filled = !!photoFiles[key];
               return (
-                <div
+                <button
                   key={key}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-b-0"
+                  type="button"
+                  onClick={() => { const t = { group: "photo" as const, key }; captureTargetRef.current = t; setCapturingFor(t); }}
+                  className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all active:scale-[0.97] ${
+                    filled ? "border-green-400 bg-green-50" : "border-dashed border-gray-300 bg-gray-50"
+                  }`}
                 >
-                  {/* Иконка статуса: зелёный круг + галочка или красный круг + X */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    filled ? "bg-green-500" : "bg-red-400"
+                  {photoPreviewUrls[key] ? (
+                    <img
+                      src={photoPreviewUrls[key]}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                      <Camera size={28} className="text-gray-400" />
+                    </div>
+                  )}
+                  {/* Label overlay */}
+                  <div className={`absolute bottom-0 left-0 right-0 px-2 py-1.5 text-center text-xs font-semibold ${
+                    filled
+                      ? "bg-green-500/90 text-white"
+                      : "bg-black/50 text-white"
                   }`}>
-                    {filled ? (
-                      <CheckCircle size={18} className="text-white" strokeWidth={2.5} />
-                    ) : (
-                      <XCircle size={18} className="text-white" strokeWidth={2.5} />
-                    )}
+                    {PHOTO_LABELS[key]}
                   </div>
-                  {/* Превью + label — тап открывает камеру */}
-                  <button
-                    type="button"
-                    onClick={() => { const t = { group: "photo" as const, key }; captureTargetRef.current = t; setCapturingFor(t); }}
-                    className="flex-1 min-w-0 flex items-center gap-2 text-left active:opacity-80"
-                  >
-                    {photoPreviewUrls[key] ? (
-                      <img
-                        src={photoPreviewUrls[key]}
-                        alt=""
-                        className="w-14 h-14 rounded-lg object-cover shrink-0 border border-gray-200"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg bg-gray-100 shrink-0 flex items-center justify-center">
-                        <Camera size={20} className="text-gray-400" />
-                      </div>
-                    )}
-                    <span className="text-sm font-medium text-gray-800">
-                      {PHOTO_LABELS[key]} {key !== "extra" ? "*" : ""}
-                    </span>
-                  </button>
-                  {/* Статус справа: 1/1 или 0/1 */}
-                  <span className={`text-xs font-medium shrink-0 w-12 text-right ${
-                    filled ? "text-green-600" : "text-red-500"
-                  }`}>
-                    {filled ? "1/1" : "0/1"}
-                  </span>
-                </div>
+                  {/* Check badge */}
+                  {filled && (
+                    <div className="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow">
+                      <CheckCircle size={16} className="text-white" strokeWidth={3} />
+                    </div>
+                  )}
+                </button>
               );
             })}
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
           <div className="flex gap-2 pt-3">
             <Button variant="secondary" onClick={() => setStep("docs")} className="flex-1">
@@ -557,16 +613,16 @@ export default function DriverVerificationPage() {
             </Button>
             <Button
               fullWidth size="lg"
-              disabled={photoCount < 6 || loading}
+              disabled={photoCount < 7 || loading}
               loading={loading}
               onClick={handleSubmit}
               className="flex-[2]"
             >
-              {photoCount >= 6 ? `Проверить (${photoCount}/8)` : `Ещё ${6 - photoCount} фото`}
+              {photoCount >= 7 ? `Проверить (${photoCount}/${VERIFICATION_PHOTO_KEYS.length})` : `Ещё ${7 - photoCount} фото`}
             </Button>
           </div>
-          {photoCount < 6 && (
-            <p className="text-xs text-amber-600 text-center">Минимум 6 фото для проверки</p>
+          {photoCount < 7 && (
+            <p className="text-xs text-amber-600 text-center">Все 7 фото обязательны</p>
           )}
         </div>
       )}

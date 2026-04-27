@@ -133,6 +133,7 @@ export async function loginWithTelegram(tgUser: TelegramUser) {
       phone: userData.phone,
       status: userData.status,
       avatarUrl: userData.avatarUrl,
+      selfieAvatarAt: (userData as any).selfieAvatarAt,
       driverProfile: userData.driverProfile || null,
     },
     isNewUser,
@@ -163,8 +164,43 @@ export async function uploadAvatar(userId: string, imageBlob: Blob): Promise<str
   });
   const url = await getDownloadURL(storageRef);
   const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, { avatarUrl: url, updatedAt: serverTimestamp() });
+  await updateDoc(userRef, {
+    avatarUrl: url,
+    selfieAvatarAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
   return url;
+}
+
+/** Человекочитаемый вид марки/модели из распознанного текста */
+function prettifyVehicleField(s: string): string {
+  if (!s?.trim()) return "";
+  return s
+    .trim()
+    .split(/\s+/)
+    .map((w) => (w.length ? w.charAt(0).toLocaleUpperCase("ru-RU") + w.slice(1).toLocaleLowerCase("ru-RU") : ""))
+    .join(" ");
+}
+
+function isVerifiedFlag(v: unknown): boolean {
+  return v === true || v === "true" || v === 1 || v === "1";
+}
+
+async function latestVerificationRequestStatus(driverId: string): Promise<string | null> {
+  try {
+    const q = query(
+      collection(db, "verification_requests"),
+      where("driverId", "==", driverId),
+      orderBy("submittedAt", "desc"),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const s = (snap.docs[0].data() as { status?: string }).status;
+    return typeof s === "string" ? s : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function resetUserProfile(userId: string) {
@@ -218,6 +254,10 @@ export async function registerUser(
   }
 ) {
   const userRef = doc(db, "users", userId);
+  const existingSnap = await getDoc(userRef);
+  const prev = existingSnap.exists() ? existingSnap.data() : null;
+  const prevDp = prev?.driverProfile && typeof prev.driverProfile === "object" ? prev.driverProfile : null;
+
   const update: any = {
     role: data.role,
     phone: data.phone,
@@ -233,18 +273,28 @@ export async function registerUser(
   };
 
   if (data.role === "DRIVER") {
+    let wasVerified = isVerifiedFlag(prevDp?.isVerified);
+    if (!wasVerified) {
+      const vStatus = await latestVerificationRequestStatus(userId);
+      if (vStatus === "approved") wasVerified = true;
+    }
     update.driverProfile = {
-      carBrand: data.carBrand || "",
-      carModel: data.carModel || "",
-      carColor: data.carColor || "",
-      carYear: data.carYear || 2020,
-      licensePlate: data.licensePlate || "",
+      ...(prevDp || {}),
+      carBrand: (data.carBrand ?? prevDp?.carBrand) || "",
+      carModel: (data.carModel ?? prevDp?.carModel) || "",
+      carColor: (data.carColor ?? prevDp?.carColor) || "",
+      carYear: data.carYear ?? prevDp?.carYear ?? 2020,
+      licensePlate: (data.licensePlate ?? prevDp?.licensePlate) || "",
       driverStatus: "OFFLINE",
-      isVerified: false,
-      subscriptionActive: true,
-      currentLat: null,
-      currentLng: null,
+      isVerified: wasVerified,
+      subscriptionActive: prevDp?.subscriptionActive !== false,
     };
+    if (!wasVerified) {
+      update.driverProfile.isVerified = false;
+      update.driverProfile.subscriptionActive = true;
+    }
+    update.driverProfile.currentLat = (prevDp as any)?.currentLat ?? null;
+    update.driverProfile.currentLng = (prevDp as any)?.currentLng ?? null;
   }
 
   await updateDoc(userRef, update);
@@ -264,6 +314,8 @@ export async function registerUser(
     cityLat: u.cityLat || 0,
     cityLng: u.cityLng || 0,
     gender: u.gender || "",
+    avatarUrl: u.avatarUrl,
+    selfieAvatarAt: (u as any).selfieAvatarAt,
     driverProfile: u.driverProfile || null,
   };
 }
@@ -282,6 +334,7 @@ export async function getMe(userId: string) {
     status: u.status,
     codexAccepted: u.codexAccepted,
     avatarUrl: u.avatarUrl,
+    selfieAvatarAt: (u as any).selfieAvatarAt,
     trustScore: u.trustScore ?? 4.5,
     city: u.city || "",
     cityLat: u.cityLat || 0,
@@ -468,6 +521,17 @@ export async function createTrip(
   return { id: tripRef.id, ...snap.data(), priceEstimate: estimate };
 }
 
+export async function updateTripPrice(tripId: string, newPrice: number, clientId: string) {
+  const tripRef = doc(db, "trips", tripId);
+  const snap = await getDoc(tripRef);
+  if (!snap.exists()) throw new Error("Поездка не найдена");
+  const trip = snap.data();
+  if (trip.clientId !== clientId) throw new Error("Нет доступа");
+  if (!["SEARCHING", "BIDDING"].includes(trip.status)) throw new Error("Нельзя изменить цену");
+  const rounded = Math.max(650, Math.round(newPrice / 100) * 100);
+  await updateDoc(tripRef, { price: rounded, updatedAt: serverTimestamp() });
+}
+
 // ==================== AUCTION / BIDS ====================
 
 export async function createBid(
@@ -505,7 +569,7 @@ export async function createBid(
   const bidRef = await addDoc(collection(db, "trips", tripId, "bids"), {
     tripId,
     driverId,
-    price: Math.round(price / 50) * 50,
+    price: Math.round(price / 100) * 100,
     message: message || "",
     etaMinutes,
     status: "PENDING",
@@ -562,15 +626,72 @@ export async function acceptBid(tripId: string, bidId: string, clientId: string)
     if (d.id !== bidId) await updateDoc(d.ref, { status: "REJECTED" });
   }
 
-  // Assign driver to trip
+  // Fetch driver name for notifications
+  let driverName = "";
+  try {
+    const driverSnap = await getDoc(doc(db, "users", bid.driverId));
+    if (driverSnap.exists()) {
+      const d = driverSnap.data();
+      driverName = [d.firstName, d.lastName].filter(Boolean).join(" ");
+    }
+  } catch {}
+
   await updateDoc(tripRef, {
     driverId: bid.driverId,
+    driverName,
     finalPrice: bid.price,
     status: "DRIVER_ASSIGNED",
     driverAssignedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   await updateDoc(doc(db, "users", bid.driverId), { "driverProfile.driverStatus": "BUSY" });
+
+  const updated = await getDoc(tripRef);
+  return enrichTripWithUsers({ id: tripId, ...updated.data() });
+}
+
+/** Клиент отказывается от выбранного водителя до выезда — снова аукцион, остальные отклики возвращаются в ожидание */
+export async function declineAssignedDriver(tripId: string, clientId: string) {
+  const tripRef = doc(db, "trips", tripId);
+  const tripSnap = await getDoc(tripRef);
+  if (!tripSnap.exists()) throw new Error("Поездка не найдена");
+  const trip = tripSnap.data()!;
+  if (trip.clientId !== clientId) throw new Error("Не ваша поездка");
+  if (trip.status !== "DRIVER_ASSIGNED") {
+    throw new Error("Сменить водителя можно только до выезда к вам");
+  }
+  const assignedDriverId = trip.driverId as string | undefined;
+  if (!assignedDriverId) throw new Error("Водитель не назначен");
+
+  const bidsColl = collection(db, "trips", tripId, "bids");
+  const bidsSnap = await getDocs(bidsColl);
+  const acceptedDoc = bidsSnap.docs.find((d) => d.data().status === "ACCEPTED");
+  if (!acceptedDoc) throw new Error("Не найдено подтверждённое предложение");
+
+  const declinedDriverId = String(acceptedDoc.data().driverId || "");
+  const batch = writeBatch(db);
+  batch.update(acceptedDoc.ref, { status: "REJECTED" });
+
+  bidsSnap.docs.forEach((d) => {
+    if (d.id === acceptedDoc.id) return;
+    const b = d.data();
+    const dr = b.driverId as string | undefined;
+    if (b.status === "REJECTED" && dr && dr !== declinedDriverId) {
+      batch.update(d.ref, { status: "PENDING" });
+    }
+  });
+
+  batch.update(tripRef, {
+    driverId: null,
+    driverName: "",
+    finalPrice: null,
+    driverAssignedAt: null,
+    status: "BIDDING",
+    updatedAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+  await updateDoc(doc(db, "users", declinedDriverId), { "driverProfile.driverStatus": "ONLINE" });
 
   const updated = await getDoc(tripRef);
   return enrichTripWithUsers({ id: tripId, ...updated.data() });
@@ -710,7 +831,7 @@ export async function updateTripStatus(tripId: string, newStatus: string, userId
     update.cancelledBy = userId;
     update.cancelReason = cancelReason || "";
     if (trip.driverId) await updateDoc(doc(db, "users", trip.driverId), { "driverProfile.driverStatus": "ONLINE" });
-    await updateDoc(doc(db, "users", userId), { trustScore: increment(-0.10) });
+    // trustScore penalty disabled for now
   }
 
   await updateDoc(tripRef, update);
@@ -733,21 +854,29 @@ export async function rateTrip(tripId: string, raterId: string, score: number, c
   let delta = 0;
   if (numScore === 5) delta = 0.01;
   else if (numScore === 4) delta = 0.005;
-  else if (numScore === 2) delta = -0.03;
-  else if (numScore === 1) delta = -0.05;
 
-  if (delta !== 0) {
-    await updateDoc(doc(db, "users", ratedId), { trustScore: increment(delta), totalRatings: increment(1) });
-  }
+  await updateDoc(doc(db, "users", ratedId), {
+    totalRatings: increment(1),
+    ...(delta > 0 ? { trustScore: increment(delta) } : {}),
+  });
 }
 
 // ==================== DRIVER ====================
 
 export async function driverGoOnline(driverId: string) {
   const snap = await getDoc(doc(db, "users", driverId));
-  const dp = snap.data()?.driverProfile;
+  const data = snap.data();
+  const dp = data?.driverProfile;
   if (!dp) throw new Error("Нет профиля водителя");
-  // Подписка пока не требуется
+  if (!dp.isVerified) throw new Error("Пройдите верификацию, чтобы выйти на линию");
+  const avatar = typeof data?.avatarUrl === "string" ? data.avatarUrl.trim() : "";
+  if (!avatar) {
+    throw new Error("Сделайте селфи в «Профиль» — без фото нельзя выйти на линию");
+  }
+  const selfieAt = (data as any)?.selfieAvatarAt;
+  if (selfieAt == null) {
+    throw new Error("Нужно селфи через камеру в «Профиль» — аватар из Telegram не подходит для линии");
+  }
   await updateDoc(doc(db, "users", driverId), { "driverProfile.driverStatus": "ONLINE" });
 }
 
@@ -906,7 +1035,7 @@ export function onDriverIncomingTrips(
 // ==================== VERIFICATION (Driver + Admin) ====================
 
 export const VERIFICATION_DOC_TYPES = ["techPassport", "license"] as const;
-export const VERIFICATION_PHOTO_KEYS = ["left", "right", "rear", "front", "interiorFront", "rearSeat", "trunk", "extra"] as const;
+export const VERIFICATION_PHOTO_KEYS = ["front", "rear", "left", "right", "interiorFront", "interiorRear", "trunk"] as const;
 
 export async function uploadVerificationFile(
   userId: string,
@@ -940,14 +1069,13 @@ export interface VerificationDocuments {
 }
 
 export interface VerificationVehiclePhotos {
+  front?: VerificationFileData;
+  rear?: VerificationFileData;
   left?: VerificationFileData;
   right?: VerificationFileData;
-  rear?: VerificationFileData;
-  front?: VerificationFileData;
   interiorFront?: VerificationFileData;
-  rearSeat?: VerificationFileData;
+  interiorRear?: VerificationFileData;
   trunk?: VerificationFileData;
-  extra?: VerificationFileData;
 }
 
 export async function createVerificationRequest(
@@ -995,13 +1123,18 @@ export async function createVerificationRequest(
       const u = (data.vehiclePhotos as any)[k]?.url;
       if (typeof u === "string" && u.length > 0) vehiclePhotoUrls[k] = u;
     }
-    await updateDoc(doc(db, "users", driverId), {
+    const brandRaw = data.verdict?.carBrand?.trim() || "";
+    const modelRaw = data.verdict?.carModel?.trim() || "";
+    const userUpdate: Record<string, string | number | boolean | Record<string, string> | ReturnType<typeof serverTimestamp> | null> = {
       "driverProfile.isVerified": true,
       "driverProfile.maxTariff": maxTariff,
-      "driverProfile.carYear": data.verdict?.carYear || null,
+      "driverProfile.carYear": data.verdict?.carYear ?? null,
       "driverProfile.vehiclePhotoUrls": vehiclePhotoUrls,
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (brandRaw) userUpdate["driverProfile.carBrand"] = prettifyVehicleField(brandRaw);
+    if (modelRaw) userUpdate["driverProfile.carModel"] = prettifyVehicleField(modelRaw);
+    await updateDoc(doc(db, "users", driverId), userUpdate as any);
   }
 
   return { id: reqRef.id, autoApproved, maxTariff };
@@ -1051,12 +1184,17 @@ export async function approveVerificationRequest(
     reviewedBy: adminId,
     rejectionReason: null,
   });
-  await updateDoc(doc(db, "users", data.driverId), {
+  const brandRaw = data.verdict?.carBrand?.trim() || "";
+  const modelRaw = data.verdict?.carModel?.trim() || "";
+  const userUpdate: Record<string, string | number | boolean | ReturnType<typeof serverTimestamp> | null> = {
     "driverProfile.isVerified": true,
     "driverProfile.maxTariff": tariff,
-    "driverProfile.carYear": data.verdict?.carYear || null,
+    "driverProfile.carYear": data.verdict?.carYear ?? null,
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (brandRaw) userUpdate["driverProfile.carBrand"] = prettifyVehicleField(brandRaw);
+  if (modelRaw) userUpdate["driverProfile.carModel"] = prettifyVehicleField(modelRaw);
+  await updateDoc(doc(db, "users", data.driverId), userUpdate as any);
 }
 
 export async function rejectVerificationRequest(requestId: string, adminId: string, reason: string) {

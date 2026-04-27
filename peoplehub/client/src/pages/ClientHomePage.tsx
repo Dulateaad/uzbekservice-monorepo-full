@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Navigation, Clock, History, User, X, Loader2, MapPin,
-  ChevronDown, Car, Zap, Crown, Search, LayoutGrid, ShieldCheck, MessageSquare, Banknote,
-  ArrowRightLeft, CalendarDays, Users, Briefcase, ChevronRight, Minus, Plus
+  ChevronDown, ChevronUp, Car, Zap, Crown, Search, LayoutGrid, ShieldCheck, MessageSquare, Banknote,
+  ArrowRightLeft, CalendarDays, Users, Briefcase, ChevronRight, Minus, Plus, Info
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { useTelegram } from '../hooks/useTelegram';
@@ -31,6 +31,8 @@ export default function ClientHomePage() {
   const { user, userId, setActiveTrip } = useStore();
   const { tg } = useTelegram();
   const navigate = useNavigate();
+  const location = useLocation();
+  const prevPathRef = useRef<string>(location.pathname);
 
   const [tripMode, setTripMode] = useState<TripMode>('city');
   const [uiState, setUiState] = useState<UIState>('map');
@@ -64,6 +66,9 @@ export default function ClientHomePage() {
   // Order
   const [ordering, setOrdering] = useState(false);
   const [error, setError] = useState('');
+
+  // Price breakdown
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   // Preferences
   const [femaleDriverOnly, setFemaleDriverOnly] = useState(false);
@@ -114,6 +119,15 @@ export default function ClientHomePage() {
     setRecentAddresses(updated);
     localStorage.setItem('ph_recent_addresses', JSON.stringify(updated));
   }
+
+  // После поездки (/trip/...) корректировка цены оставалась в памяти — сбрасываем на новый заказ
+  useEffect(() => {
+    const prev = prevPathRef.current;
+    if (location.pathname === '/client' && prev.startsWith('/trip')) {
+      setPriceAdjustment(0);
+    }
+    prevPathRef.current = location.pathname;
+  }, [location.pathname]);
 
   // Check active trip
   useEffect(() => {
@@ -778,26 +792,18 @@ export default function ClientHomePage() {
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 mb-4">
                   <p className="text-xs text-gray-500 font-medium mb-3 uppercase tracking-wider">Ваша цена</p>
 
-                  <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="flex items-center justify-center gap-3 mb-3">
                     <button
                       onClick={() => { tg?.HapticFeedback?.impactOccurred('light'); setPriceAdjustment((a) => Math.max(-tariffPrice + 650, a - 100)); }}
-                      className="w-11 h-11 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95 shadow-sm"
-                    >−100</button>
-                    <button
-                      onClick={() => { tg?.HapticFeedback?.impactOccurred('light'); setPriceAdjustment((a) => Math.max(-tariffPrice + 650, a - 50)); }}
-                      className="w-11 h-11 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95 shadow-sm"
-                    >−50</button>
-                    <div className="px-3">
-                      <p className="text-2xl font-extrabold text-blue-600">{displayPrice.toLocaleString()}</p>
+                      className="w-12 h-11 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95 shadow-sm"
+                    >-100</button>
+                    <div className="px-3 min-w-[5.5rem]">
+                      <p className="text-2xl font-extrabold text-blue-600 text-center">{displayPrice.toLocaleString()}</p>
                       <p className="text-[10px] text-gray-400 text-center">тенге</p>
                     </div>
                     <button
-                      onClick={() => { tg?.HapticFeedback?.impactOccurred('light'); setPriceAdjustment((a) => a + 50); }}
-                      className="w-11 h-11 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95 shadow-sm"
-                    >+50</button>
-                    <button
                       onClick={() => { tg?.HapticFeedback?.impactOccurred('light'); setPriceAdjustment((a) => a + 100); }}
-                      className="w-11 h-11 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95 shadow-sm"
+                      className="w-12 h-11 rounded-xl bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95 shadow-sm"
                     >+100</button>
                   </div>
 
@@ -809,6 +815,42 @@ export default function ClientHomePage() {
                       </span>
                     </p>
                   )}
+                  {/* Price breakdown toggle */}
+                  <button
+                    onClick={() => setShowBreakdown((v) => !v)}
+                    className="flex items-center justify-center gap-1 mx-auto mt-2 text-[11px] text-blue-500 font-medium"
+                  >
+                    <Info size={12} />
+                    {showBreakdown ? 'Скрыть расчёт' : 'Как формируется цена?'}
+                    {showBreakdown ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+
+                  {showBreakdown && currentTariffData && priceEstimate && (
+                    <div className="mt-2 bg-white/80 rounded-xl p-3 space-y-1.5 text-xs">
+                      <div className="flex justify-between text-gray-600">
+                        <span>Подача</span>
+                        <span className="font-medium">{priceEstimate.breakdown.baseFare.toLocaleString()} тг</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Расстояние ({priceEstimate.distanceKm.toFixed(1)} км)</span>
+                        <span className="font-medium">{priceEstimate.breakdown.distanceFare.toLocaleString()} тг</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Время (~{priceEstimate.estimatedMinutes} мин)</span>
+                        <span className="font-medium">{priceEstimate.breakdown.timeFare.toLocaleString()} тг</span>
+                      </div>
+                      <div className="h-px bg-gray-200 my-1" />
+                      <div className="flex justify-between text-gray-600">
+                        <span>Тариф «{currentTariffData.name}»</span>
+                        <span className="font-medium">×{(TARIFF_LIST.find((t) => t.id === selectedTariff)?.multiplier || 1).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-800 font-semibold pt-1">
+                        <span>Итого</span>
+                        <span>{tariffPrice.toLocaleString()} тг</span>
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-center text-[10px] text-gray-300 mt-2">Справочный расчёт. Итоговую сумму стороны определяют самостоятельно.</p>
                 </div>
 

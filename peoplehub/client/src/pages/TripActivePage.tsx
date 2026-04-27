@@ -9,7 +9,7 @@ import { useTelegram } from '../hooks/useTelegram';
 import { getDirections } from '../services/geo';
 import {
   onTripUpdate, onDriverLocation, getTripByIdEnriched, enrichTripWithUsers, updateTripStatus,
-  rateTrip, onTripBids, acceptBid
+  rateTrip, onTripBids, acceptBid, updateTripPrice, declineAssignedDriver,
 } from '../services/firebase';
 import Button from '../components/common/Button';
 import TrustBadge from '../components/common/TrustBadge';
@@ -30,16 +30,15 @@ const STATUS_UI: Record<string, {
   NO_DRIVER:       { label: 'Нет откликов', color: 'bg-gray-500', bg: 'bg-gray-50', description: 'Никто не откликнулся' },
 };
 
-const VEHICLE_PHOTO_ORDER = ['front', 'left', 'right', 'rear', 'interiorFront', 'rearSeat', 'trunk', 'extra'] as const;
+const VEHICLE_PHOTO_ORDER = ['front', 'rear', 'left', 'right', 'interiorFront', 'interiorRear', 'trunk'] as const;
 const VEHICLE_PHOTO_LABELS: Record<string, string> = {
   front: 'Спереди',
+  rear: 'Сзади',
   left: 'Слева',
   right: 'Справа',
-  rear: 'Сзади',
-  interiorFront: 'Салон',
-  rearSeat: 'Задние сиденья',
+  interiorFront: 'Салон спереди',
+  interiorRear: 'Салон сзади',
   trunk: 'Багажник',
-  extra: 'Доп.',
 };
 
 function DriverVehiclePhotoStrip({ urls }: { urls: Record<string, string> | undefined }) {
@@ -59,6 +58,23 @@ function DriverVehiclePhotoStrip({ urls }: { urls: Record<string, string> | unde
       </div>
     </div>
   );
+}
+
+function playBidSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {}
 }
 
 export default function TripActivePage() {
@@ -89,17 +105,34 @@ export default function TripActivePage() {
   const [etaToDestination, setEtaToDestination] = useState<number | null>(null);
   const etaUpdateRef = useRef<number>(0);
 
-  // Search timeout (client-side fallback: 7 minutes)
+  // Search timeout (client-side: 15 minutes)
   const [searchElapsed, setSearchElapsed] = useState(0);
+
+  /** Был назначенным водителем по этой поездке — чтобы отловить снятие назначения клиентом */
+  const wasMyAssignmentRef = useRef(false);
 
   const isDriver = user?.role === 'DRIVER';
   const isClient = user?.role === 'CLIENT';
 
   useEffect(() => {
+    wasMyAssignmentRef.current = false;
+  }, [tripId]);
+
+  useEffect(() => {
+    if (!trip || !userId) return;
+    if (
+      trip.driverId === userId &&
+      ['DRIVER_ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'IN_PROGRESS'].includes(trip.status)
+    ) {
+      wasMyAssignmentRef.current = true;
+    }
+  }, [trip?.driverId, trip?.status, userId]);
+
+  useEffect(() => {
     loadTrip();
   }, [tripId, userId]);
 
-  const SEARCH_TIMEOUT_SEC = 30 * 60; // 30 minutes
+  const SEARCH_TIMEOUT_SEC = 15 * 60; // 15 minutes
 
   // Client-side search timer: count elapsed seconds while SEARCHING/BIDDING
   useEffect(() => {
@@ -125,6 +158,22 @@ export default function TripActivePage() {
     if (!tripId) return;
     const unsub = onTripUpdate(tripId, (data) => {
       enrichTripWithUsers(data).then((enriched) => {
+        const st = useStore.getState();
+        const uid = st.userId;
+        const role = st.user?.role;
+        if (
+          role === 'DRIVER' &&
+          uid &&
+          wasMyAssignmentRef.current &&
+          enriched.status === 'BIDDING' &&
+          !enriched.driverId
+        ) {
+          wasMyAssignmentRef.current = false;
+          st.setActiveTrip(null);
+          tg?.showAlert?.('Клиент отказался от заказа с вами или выбрал другого водителя.');
+          navigate('/driver');
+          return;
+        }
         setTrip(enriched);
         setActiveTrip(enriched);
       });
@@ -132,15 +181,23 @@ export default function TripActivePage() {
       if (data?.status === 'DRIVER_ARRIVING' || data?.status === 'IN_PROGRESS') etaUpdateRef.current = 0;
     });
     return () => unsub();
-  }, [tripId]);
+  }, [tripId, navigate, tg]);
+
+  const prevBidCountRef = useRef(0);
 
   // Listen for bids (auction)
   useEffect(() => {
     if (!tripId || !trip) return;
     if (!['SEARCHING', 'BIDDING'].includes(trip.status)) return;
     const unsub = onTripBids(tripId, (data) => {
+      const newCount = data.length;
+      const hadFewer = newCount > prevBidCountRef.current;
+      prevBidCountRef.current = newCount;
       setBids(data as Bid[]);
-      if (data.length > 0) tg?.HapticFeedback?.notificationOccurred('success');
+      if (hadFewer && newCount > 0) {
+        tg?.HapticFeedback?.notificationOccurred('success');
+        playBidSound();
+      }
     });
     return () => unsub();
   }, [tripId, trip?.status]);
@@ -221,6 +278,27 @@ export default function TripActivePage() {
     }
   }
 
+  function handleDeclineDriver() {
+    if (!tripId || !userId) return;
+    const confirmText = 'Отказаться от этого водителя и снова выбрать из откликов?';
+    const run = async () => {
+      try {
+        setActionLoading(true);
+        const updated = await declineAssignedDriver(tripId, userId);
+        setTrip(updated as any);
+        setActiveTrip(updated as any);
+        prevBidCountRef.current = 0;
+        tg?.HapticFeedback?.notificationOccurred('success');
+      } catch (err: any) {
+        tg?.showAlert?.(err.message || 'Ошибка');
+      } finally {
+        setActionLoading(false);
+      }
+    };
+    if (tg?.showConfirm) tg.showConfirm(confirmText, (ok) => { if (ok) void run(); });
+    else if (window.confirm(confirmText)) void run();
+  }
+
   async function updateStatus(newStatus: string) {
     if (!trip) return;
     try {
@@ -238,6 +316,7 @@ export default function TripActivePage() {
     tg?.showConfirm?.('Отменить поездку?', async (ok) => {
       if (ok) {
         await updateStatus('CANCELLED');
+        setActiveTrip(null);
         navigate(isDriver ? '/driver' : '/client');
       }
     });
@@ -249,11 +328,15 @@ export default function TripActivePage() {
       const tagStr = ratingTags.length ? ratingTags.join(', ') + '. ' : '';
       await rateTrip(trip.id, userId!, rating, tagStr + ratingComment);
       tg?.HapticFeedback?.notificationOccurred('success');
+      setActiveTrip(null);
       navigate(isDriver ? '/driver' : '/client');
     } catch {}
   }
 
-  const goHome = () => navigate(isDriver ? '/driver' : '/client');
+  const goHome = () => {
+    setActiveTrip(null);
+    navigate(isDriver ? '/driver' : '/client');
+  };
 
   if (loading) {
     return (
@@ -441,8 +524,36 @@ export default function TripActivePage() {
                     <p className="text-sm font-semibold text-gray-900">
                       {bids.length === 0 ? 'Ищем водителей...' : `${bids.length} отклик${bids.length === 1 ? '' : bids.length < 5 ? 'а' : 'ов'}`}
                     </p>
-                    <span className="text-xs text-gray-400">ваша цена: {(trip.price ?? 0).toLocaleString()} тг</span>
                   </div>
+
+                  {/* Live price adjustment */}
+                  {isClient && (
+                    <div className="bg-blue-50 rounded-xl p-3 mb-2">
+                      <p className="text-[10px] text-gray-500 text-center mb-1.5">Ваша цена (можно менять)</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            const np = Math.max(650, (trip.price ?? 0) - 100);
+                            updateTripPrice(tripId!, np, userId!).then(() => { setTrip((t: any) => t ? { ...t, price: np } : t); }).catch(() => {});
+                            tg?.HapticFeedback?.impactOccurred('light');
+                          }}
+                          className="w-12 h-11 rounded-lg bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95"
+                        >-100</button>
+                        <div className="px-3 min-w-[5.5rem]">
+                          <p className="text-xl font-extrabold text-blue-600 text-center">{(trip.price ?? 0).toLocaleString()}</p>
+                          <p className="text-[9px] text-gray-400 text-center">тенге</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const np = (trip.price ?? 0) + 100;
+                            updateTripPrice(tripId!, np, userId!).then(() => { setTrip((t: any) => t ? { ...t, price: np } : t); }).catch(() => {});
+                            tg?.HapticFeedback?.impactOccurred('light');
+                          }}
+                          className="w-12 h-11 rounded-lg bg-white border border-blue-200 text-blue-600 font-bold text-sm flex items-center justify-center active:scale-95"
+                        >+100</button>
+                      </div>
+                    </div>
+                  )}
                   {bids.length > 2 && (
                     <p className="text-xs text-gray-400 mb-2">Свайпните вниз, чтобы увидеть все</p>
                   )}
@@ -460,9 +571,9 @@ export default function TripActivePage() {
                           })()}
                         </span>
                       )}
-                      {searchElapsed > 20 * 60 && (
+                      {searchElapsed > 7 * 60 && (
                         <p className="text-xs text-amber-600 mt-1 text-center px-4">
-                          Поиск идёт долго. Попробуйте повысить цену или отменить.
+                          Повысьте цену, чтобы привлечь водителей, или отмените поиск.
                         </p>
                       )}
                     </div>
@@ -513,7 +624,7 @@ export default function TripActivePage() {
                         {bid.message && <span className="truncate">«{bid.message}»</span>}
                       </div>
 
-                      {isClient && (
+                      {isClient && (trip as any).tripType === 'INTERCITY' && (
                         <DriverVehiclePhotoStrip urls={(bid.driver?.driverProfile as any)?.vehiclePhotoUrls} />
                       )}
 
@@ -601,7 +712,9 @@ export default function TripActivePage() {
                         <MessageCircle size={18} className="text-white" />
                       </button>
                     </div>
-                    <DriverVehiclePhotoStrip urls={(trip.driver.driverProfile as any)?.vehiclePhotoUrls} />
+                    {(trip as any).tripType === 'INTERCITY' && (
+                      <DriverVehiclePhotoStrip urls={(trip.driver.driverProfile as any)?.vehiclePhotoUrls} />
+                    )}
                   </div>
                 )}
 
@@ -692,6 +805,16 @@ export default function TripActivePage() {
 
           {/* ===== STICKY ACTIONS ===== */}
           <div className="flex-shrink-0 px-5 pb-5 safe-bottom bg-white border-t border-gray-100 pt-3 space-y-2">
+            {isClient && trip.status === 'DRIVER_ASSIGNED' && (
+              <button
+                type="button"
+                onClick={handleDeclineDriver}
+                disabled={actionLoading}
+                className="w-full py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm font-semibold active:scale-[0.98] disabled:opacity-50"
+              >
+                Выбрать другого водителя
+              </button>
+            )}
             {/* Driver actions */}
             {isDriver && trip.status === 'DRIVER_ASSIGNED' && (
               <Button fullWidth size="lg" loading={actionLoading} onClick={() => updateStatus('DRIVER_ARRIVING')}>

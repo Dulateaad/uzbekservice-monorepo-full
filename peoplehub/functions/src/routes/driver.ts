@@ -10,9 +10,14 @@ router.use(requireRole("DRIVER"));
 // POST /api/driver/go-online
 router.post("/go-online", async (req: Request, res: Response) => {
   const snap = await db.collection("users").doc(req.user!.id).get();
-  const dp = snap.data()?.driverProfile;
+  const u = snap.data();
+  const dp = u?.driverProfile;
   if (!dp) return res.status(404).json({ error: "Профиль не найден" });
   if (!dp.subscriptionActive) return res.status(402).json({ error: "Активируйте абонентку (200 тг/день)" });
+  const avatar = typeof u?.avatarUrl === "string" ? u.avatarUrl.trim() : "";
+  if (!avatar) {
+    return res.status(400).json({ error: "Сделайте селфи в «Профиль» — без фото нельзя выйти на линию" });
+  }
   await db.collection("users").doc(req.user!.id).update({ "driverProfile.driverStatus": "ONLINE" });
   res.json({ status: "ONLINE" });
 });

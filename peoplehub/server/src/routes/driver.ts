@@ -15,11 +15,16 @@ router.use(requireRole('DRIVER'));
 router.post('/go-online', async (req: Request, res: Response) => {
   const profile = await prisma.driverProfile.findUnique({
     where: { userId: req.user!.id },
+    include: { user: { select: { avatarUrl: true } } },
   });
 
   if (!profile) throw new AppError(404, 'Профиль водителя не найден');
   if (!profile.subscriptionActive) {
     throw new AppError(402, 'Активируйте абонентку (200 тг/день) для приёма заказов');
+  }
+  const avatar = profile.user.avatarUrl?.trim();
+  if (!avatar) {
+    throw new AppError(400, 'Сделайте селфи в «Профиль» — без фото нельзя выйти на линию');
   }
 
   await prisma.driverProfile.update({

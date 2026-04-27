@@ -73,20 +73,30 @@ router.post("/register", authMiddleware, async (req: Request, res: Response) => 
   if (!data.codexAccepted) return res.status(400).json({ error: "Примите Кодекс PeopleHub" });
 
   const userRef = db.collection("users").doc(req.user!.id);
+  const beforeSnap = await userRef.get();
+  const prevDp = beforeSnap.data()?.driverProfile;
+  const wasAlreadyVerified =
+    prevDp?.isVerified === true || prevDp?.isVerified === "true" || prevDp?.isVerified === 1;
+
   await userRef.update({ role: data.role, phone: data.phone, codexAccepted: true, codexAcceptedAt: FieldValue.serverTimestamp() });
 
   if (data.role === "DRIVER") {
     if (!data.carBrand || !data.carModel || !data.licensePlate) return res.status(400).json({ error: "Укажите данные авто" });
-    await userRef.update({
+    const driverPatch: Record<string, unknown> = {
       "driverProfile.carBrand": data.carBrand,
       "driverProfile.carModel": data.carModel,
       "driverProfile.carColor": data.carColor || "",
       "driverProfile.carYear": data.carYear || 2020,
       "driverProfile.licensePlate": data.licensePlate,
       "driverProfile.driverStatus": "OFFLINE",
-      "driverProfile.isVerified": false,
-      "driverProfile.subscriptionActive": false,
-    });
+      "driverProfile.isVerified": wasAlreadyVerified,
+    };
+    if (wasAlreadyVerified) {
+      if (prevDp?.subscriptionActive === true) driverPatch["driverProfile.subscriptionActive"] = true;
+    } else {
+      driverPatch["driverProfile.subscriptionActive"] = false;
+    }
+    await userRef.update(driverPatch);
   }
 
   const snap = await userRef.get();

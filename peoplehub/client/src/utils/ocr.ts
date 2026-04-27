@@ -387,7 +387,7 @@ export function runTariffChecklist(
   const hasTechPassport = !!(docs.techPassport?.text || docs.techPassport?.entities.length);
   const hasLicense = !!(docs.license && (docs.license.entities?.length > 0 || (docs.license.text && docs.license.text.trim().length >= 10)));
   const allDocsPresent = hasTechPassport && hasLicense;
-  const hasPhotos = Object.keys(photos).length >= 6;
+  const hasPhotos = Object.keys(photos).length >= 7;
 
   const available: TariffLevel[] = [];
 
@@ -409,10 +409,10 @@ export function runTariffChecklist(
   const checklist: ChecklistItem[] = [
     { label: "Техпаспорт", passed: hasTechPassport, detail: hasTechPassport ? "Распознан" : "Не распознан" },
     { label: "Водительские права", passed: hasLicense, detail: hasLicense ? "Распознан" : "Не распознан" },
-    { label: "Фото авто (мин. 6)", passed: hasPhotos, detail: `${Object.keys(photos).length}/8` },
+    { label: "Фото авто (мин. 7)", passed: hasPhotos, detail: `${Object.keys(photos).length}/7` },
     { label: "Год выпуска", passed: carYear !== null, detail: carYear ? `${carYear} г.` : "Не определён" },
     { label: "Марка / Модель", passed: !!carBrand, detail: carBrand ? `${carBrand} ${carModel}`.trim() : "Не определена" },
-    { label: "Кузов (ИИ)", passed: !hasDamage, detail: hasDamage ? "Повреждения" : "OK" },
+    { label: "Кузов", passed: !hasDamage, detail: hasDamage ? "Повреждения" : "OK" },
   ];
 
   if (businessModelOk || maxTariff === "business") {

@@ -28,8 +28,8 @@ const DOC_LABELS: Record<string, string> = {
 };
 
 const PHOTO_LABELS: Record<string, string> = {
-  left: "Слева", right: "Справа", rear: "Сзади", front: "Спереди",
-  interiorFront: "Салон", rearSeat: "Сзади", trunk: "Багажник", extra: "Доп.",
+  front: "Спереди", rear: "Сзади", left: "Слева", right: "Справа",
+  interiorFront: "Салон спереди", interiorRear: "Салон сзади", trunk: "Багажник",
 };
 
 const TARIFF_COLORS: Record<string, string> = {

@@ -8,6 +8,7 @@ import { parseTelegramUserFromInitData } from './utils/telegramInitData';
 import { featureFlags, getSelectedProduct } from './config/features';
 import { detectCityByGPS } from './config/cities';
 import { trackAppOpen, trackError } from './services/analytics';
+import { registerPushNotifications } from './services/pushNotifications';
 
 // Pages — Global Router
 import HubPage from './pages/HubPage';
@@ -99,6 +100,11 @@ export default function App() {
             console.error('Login error:', err);
           }
         }
+      }
+
+      // Register FCM push notifications
+      if (loggedInId) {
+        registerPushNotifications(loggedInId).catch(() => {});
       }
 
       // Auto-detect city if user doesn't have one
@@ -197,6 +203,7 @@ export default function App() {
         } />
 
         {/* ===== VERIFICATION & ADMIN ===== */}
+        <Route path="/driver/verify" element={<Navigate to="/verification" replace />} />
         <Route path="/verification" element={
           isAuthenticated && user?.role === 'DRIVER'
             ? <DriverVerificationPage />

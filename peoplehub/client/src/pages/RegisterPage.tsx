@@ -1,19 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Car, Check, ChevronRight, MapPin, Search, ChevronDown } from 'lucide-react';
+import { User, Car, Check, ChevronRight, MapPin, Search, ChevronDown, Loader2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { useTelegram } from '../hooks/useTelegram';
-import { registerUser } from '../services/firebase';
+import { registerUser, getMe } from '../services/firebase';
 import { CITIES, type City } from '../config/cities';
 import { CAR_BRANDS, CAR_COLORS } from '../config/carModels';
 import Button from '../components/common/Button';
 
 type Step = 'role' | 'gender' | 'city' | 'phone' | 'car' | 'codex';
 
+function driverProfileHasCarFromPassport(dp: {
+  carBrand?: string;
+  carModel?: string;
+  carColor?: string;
+  carYear?: number | string;
+  licensePlate?: string;
+  isVerified?: boolean | string | number;
+} | null | undefined): boolean {
+  if (!dp) return false;
+  const v = dp.isVerified;
+  const verified = v === true || v === 'true' || v === 1 || v === '1';
+  if (!verified) return false;
+  const brand = String(dp.carBrand || '').trim();
+  const model = String(dp.carModel || '').trim();
+  const plate = String(dp.licensePlate || '').trim();
+  const color = String(dp.carColor || '').trim();
+  const yearNum = typeof dp.carYear === 'number' ? dp.carYear : parseInt(String(dp.carYear || ''), 10);
+  const yearOk = Number.isFinite(yearNum) && yearNum >= 1980 && yearNum <= 2035;
+  return !!(brand && model && plate && color && yearOk);
+}
+
 export default function RegisterPage() {
   const { setAuth, userId } = useStore();
   const { tg } = useTelegram();
   const navigate = useNavigate();
+
+  const [booting, setBooting] = useState(true);
+  /** Верифицирован: марка/модель/номер уже в профиле с техпаспорта — шаг «Авто» не показываем */
+  const [skipDriverCarStep, setSkipDriverCarStep] = useState(false);
 
   // Без userId (не вошли) — отправляем на вход, иначе выбор роли недоступен
   useEffect(() => {
@@ -21,6 +46,55 @@ export default function RegisterPage() {
       navigate('/auth', { replace: true });
     }
   }, [userId, navigate]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    getMe(userId)
+      .then((me) => {
+        if (cancelled) return;
+        const dp = me.driverProfile;
+        const skipCar = driverProfileHasCarFromPassport(dp);
+        setSkipDriverCarStep(skipCar);
+
+        if (dp && skipCar) {
+          setCar({
+            carBrand: dp.carBrand || '',
+            carModel: dp.carModel || '',
+            carColor: String(dp.carColor || '').trim() || '',
+            carYear: typeof dp.carYear === 'number' && dp.carYear > 0 ? dp.carYear : 2020,
+            licensePlate: dp.licensePlate || '',
+          });
+        }
+
+        if (me.phone && String(me.phone).trim().length >= 10) setPhone(me.phone);
+        if (me.gender === 'MALE' || me.gender === 'FEMALE') setGender(me.gender);
+        const city = CITIES.find((c) => c.name === me.city);
+        if (city) setSelectedCity(city);
+
+        if (me.role === 'DRIVER') {
+          setRole('DRIVER');
+        }
+
+        const profileComplete =
+          me.phone &&
+          String(me.phone).length >= 10 &&
+          !!me.city &&
+          (me.gender === 'MALE' || me.gender === 'FEMALE') &&
+          !!CITIES.find((c) => c.name === me.city);
+
+        if (me.role === 'DRIVER' && skipCar && profileComplete) {
+          setStep('codex');
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setBooting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const [step, setStep] = useState<Step>('role');
   const [role, setRole] = useState<'CLIENT' | 'DRIVER' | null>(null);
@@ -47,6 +121,13 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
 
   const allCodexChecked = Object.values(codexChecks).every(Boolean);
+
+  const stepProgress = useMemo(() => {
+    const base: Step[] = ['role', 'gender', 'city', 'phone'];
+    if (role === 'DRIVER' && !skipDriverCarStep) base.push('car');
+    base.push('codex');
+    return base;
+  }, [role, skipDriverCarStep]);
 
   async function handleSubmit() {
     if (!role) return;
@@ -93,7 +174,7 @@ export default function RegisterPage() {
     } else if (step === 'city' && selectedCity) {
       setStep('phone');
     } else if (step === 'phone') {
-      setStep(role === 'DRIVER' ? 'car' : 'codex');
+      setStep(role === 'DRIVER' && !skipDriverCarStep ? 'car' : 'codex');
     } else if (step === 'car') {
       setStep('codex');
     }
@@ -103,16 +184,25 @@ export default function RegisterPage() {
     return null;
   }
 
+  if (booting) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-tg-bg safe-top safe-bottom gap-3">
+        <Loader2 className="animate-spin text-primary-500" size={32} />
+        <p className="text-sm text-tg-hint">Загрузка профиля…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-tg-bg safe-top safe-bottom">
       {/* Progress */}
       <div className="px-6 pt-4 pb-2">
         <div className="flex gap-1.5">
-          {['role', 'gender', 'city', 'phone', ...(role === 'DRIVER' ? ['car'] : []), 'codex'].map((s, i, arr) => (
+          {stepProgress.map((s, i) => (
             <div
-              key={s}
+              key={`${s}-${i}`}
               className={`h-1 rounded-full flex-1 transition-colors ${
-                arr.indexOf(step) >= i ? 'bg-primary-500' : 'bg-gray-200'
+                stepProgress.indexOf(step) >= i ? 'bg-primary-500' : 'bg-gray-200'
               }`}
             />
           ))}
@@ -253,7 +343,12 @@ export default function RegisterPage() {
         {step === 'codex' && (
           <div className="animate-fade-in">
             <h2 className="text-2xl font-bold text-tg-text mb-2">Кодекс PeopleHub</h2>
-            <p className="text-tg-hint mb-6">Подтвердите, что обязуетесь</p>
+            <p className="text-tg-hint mb-4">Подтвердите, что обязуетесь</p>
+            {role === 'DRIVER' && skipDriverCarStep && (
+              <p className="text-xs text-primary-800 bg-primary-50 border border-primary-100 rounded-xl px-3 py-2 mb-4">
+                Марка, модель, год, цвет и госномер уже в системе из вашей верификации (техпаспорт) — повторно вводить авто не нужно.
+              </p>
+            )}
 
             <div className="space-y-3">
               <CodexItem
@@ -342,6 +437,7 @@ function CarStep({ car, setCar, tg }: {
   const [brandOpen, setBrandOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  const [yearOpen, setYearOpen] = useState(false);
   const [brandSearch, setBrandSearch] = useState('');
 
   const selectedBrand = CAR_BRANDS.find((b) => b.name === car.carBrand);
@@ -362,7 +458,7 @@ function CarStep({ car, setCar, tg }: {
         <div>
           <label className="text-xs font-medium text-tg-hint block mb-1">Марка *</label>
           <button
-            onClick={() => { setBrandOpen(!brandOpen); setModelOpen(false); setColorOpen(false); }}
+            onClick={() => { setBrandOpen(!brandOpen); setModelOpen(false); setColorOpen(false); setYearOpen(false); }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left ${
               car.carBrand
                 ? 'bg-primary-50 border-2 border-primary-400 text-tg-text'
@@ -416,7 +512,7 @@ function CarStep({ car, setCar, tg }: {
           <button
             onClick={() => {
               if (!car.carBrand) return;
-              setModelOpen(!modelOpen); setBrandOpen(false); setColorOpen(false);
+              setModelOpen(!modelOpen); setBrandOpen(false); setColorOpen(false); setYearOpen(false);
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left ${
               !car.carBrand ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
@@ -456,7 +552,7 @@ function CarStep({ car, setCar, tg }: {
         <div>
           <label className="text-xs font-medium text-tg-hint block mb-1">Цвет *</label>
           <button
-            onClick={() => { setColorOpen(!colorOpen); setBrandOpen(false); setModelOpen(false); }}
+            onClick={() => { setColorOpen(!colorOpen); setBrandOpen(false); setModelOpen(false); setYearOpen(false); }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left ${
               car.carColor
                 ? 'bg-primary-50 border-2 border-primary-400 text-tg-text'
@@ -488,18 +584,47 @@ function CarStep({ car, setCar, tg }: {
           )}
         </div>
 
-        {/* Year picker */}
+        {/* Year: кнопки вместо select — в Telegram WebView нативный выпадающий список часто не открывается */}
         <div>
           <label className="text-xs font-medium text-tg-hint block mb-1">Год выпуска *</label>
-          <select
-            value={car.carYear}
-            onChange={(e) => setCar({ ...car, carYear: parseInt(e.target.value) })}
-            className="w-full bg-tg-secondaryBg rounded-xl px-4 py-3 text-tg-text outline-none focus:ring-2 focus:ring-primary-500 appearance-none"
+          <button
+            type="button"
+            onClick={() => {
+              setYearOpen(!yearOpen);
+              setBrandOpen(false);
+              setModelOpen(false);
+              setColorOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left touch-manipulation ${
+              car.carYear
+                ? 'bg-primary-50 border-2 border-primary-400 text-tg-text'
+                : 'bg-tg-secondaryBg border-2 border-transparent text-tg-hint'
+            }`}
           >
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+            <span className="font-medium">{car.carYear}</span>
+            <ChevronDown size={18} className={`transition-transform ${yearOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {yearOpen && (
+            <div className="mt-1 bg-white rounded-xl border border-gray-200 shadow-lg max-h-52 overflow-y-auto">
+              {years.map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => {
+                    setCar({ ...car, carYear: y });
+                    setYearOpen(false);
+                    tg?.HapticFeedback?.selectionChanged();
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center justify-between touch-manipulation ${
+                    car.carYear === y ? 'bg-primary-50 text-primary-600 font-medium' : 'text-tg-text'
+                  }`}
+                >
+                  {y}
+                  {car.carYear === y && <Check size={16} className="text-primary-500" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* License plate */}

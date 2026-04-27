@@ -4,13 +4,14 @@ import {
   Power, PowerOff, MapPin, Clock, Navigation, Star,
   History, User, AlertCircle, X, ChevronUp, Loader2, LayoutGrid,
   ShieldCheck, MessageSquare, Banknote, ArrowRightLeft, Car,
-  CalendarDays, Users, Briefcase
+  CalendarDays, Users, Briefcase, Camera
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { useTelegram } from '../hooks/useTelegram';
 import {
   driverGoOnline, driverGoOffline, updateDriverLocation, getDriverStats,
-  getActiveTrip, onNearbyTrips, onDriverIncomingTrips, onIntercityTrips, createBid, TARIFFS
+  getActiveTrip, onNearbyTrips, onDriverIncomingTrips, onIntercityTrips, createBid, TARIFFS,
+  onTripUpdate,
 } from '../services/firebase';
 import Button from '../components/common/Button';
 import TrustBadge from '../components/common/TrustBadge';
@@ -204,6 +205,15 @@ export default function DriverHomePage() {
     } catch {}
   }
 
+  const hasDriverSelfie = Boolean((user as any)?.selfieAvatarAt != null);
+
+  function goProfileForAvatar() {
+    const msg = 'Сделайте селфи камерой в «Профиль» (не аватар из Telegram). Без этого на линию выйти нельзя.';
+    if (tg?.showAlert) tg.showAlert(msg);
+    else window.alert(msg);
+    navigate('/profile');
+  }
+
   async function toggleOnline() {
     try {
       setLoading(true); setError('');
@@ -249,12 +259,36 @@ export default function DriverHomePage() {
     );
   }
 
+  /** Цена запроса с точки зрения клиента (межгород — за место) */
+  function clientOfferForTrip(trip: Trip): number {
+    const t = trip as any;
+    if (t.tripType === 'INTERCITY') {
+      const per = Number(t.pricePerSeat);
+      if (Number.isFinite(per) && per > 0) return Math.max(650, per);
+    }
+    const p = Number(trip.price);
+    return Number.isFinite(p) && p > 0 ? Math.max(650, p) : 650;
+  }
+
   function openBidSheet(trip: Trip) {
     setSelectedTrip(trip);
-    setBidPrice(trip.price);
+    setBidPrice(clientOfferForTrip(trip));
     setBidMessage('');
     tg?.HapticFeedback?.impactOccurred('medium');
   }
+
+  // Пассажир меняет цену — в модалке отклика сразу видна актуальная сумма
+  useEffect(() => {
+    const tid = selectedTrip?.id;
+    if (!tid) return;
+    const unsub = onTripUpdate(tid, (snap) => {
+      setSelectedTrip((prev) => {
+        if (!prev || prev.id !== tid) return prev;
+        return { ...prev, ...snap, id: tid };
+      });
+    });
+    return () => unsub();
+  }, [selectedTrip?.id]);
 
   async function handleSubmitBid() {
     if (!selectedTrip || !userId) return;
@@ -481,22 +515,71 @@ export default function DriverHomePage() {
           </div>
         )}
 
-        {!isOnline && (
+        {!isOnline && !user?.driverProfile?.isVerified && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3 flex items-start gap-2.5">
+            <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-800 font-semibold text-sm">Вы не верифицированы</p>
+              <p className="text-amber-600 text-xs mt-0.5">Пройдите верификацию, чтобы выйти на линию и принимать заказы.</p>
+              <button
+                onClick={() => navigate('/verification')}
+                className="mt-2 text-xs font-semibold text-amber-700 underline underline-offset-2"
+              >
+                Пройти верификацию →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isOnline && user?.driverProfile?.isVerified && hasDriverSelfie && (
           <div className="bg-green-50 rounded-xl px-4 py-2 mb-3 text-center">
             <p className="text-green-700 font-semibold text-sm">0% комиссии — вся оплата ваша</p>
           </div>
         )}
 
+        {!isOnline && user?.driverProfile?.isVerified && !hasDriverSelfie && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3 flex items-start gap-2.5">
+            <Camera size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-800 font-semibold text-sm">Нужно фото профиля</p>
+              <p className="text-amber-700 text-xs mt-0.5">
+                Селфи только через камеру в «Профиль». Без него выход на линию недоступен.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/profile')}
+                className="mt-2 text-xs font-semibold text-amber-800 underline underline-offset-2"
+              >
+                Открыть профиль →
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Go online / offline */}
         <button
-          onClick={toggleOnline}
+          onClick={
+            !user?.driverProfile?.isVerified
+              ? () => navigate('/verification')
+              : !hasDriverSelfie
+                ? goProfileForAvatar
+                : toggleOnline
+          }
           disabled={loading}
           className={`w-full py-3.5 rounded-xl font-semibold text-base flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-60 transition-all ${
-            isOnline ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+            !user?.driverProfile?.isVerified
+              ? 'bg-gray-300 text-gray-500'
+              : !hasDriverSelfie && !isOnline
+                ? 'bg-amber-400 text-amber-950'
+                : isOnline ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
           }`}
         >
           {loading ? (
             <Loader2 size={20} className="animate-spin" />
+          ) : !user?.driverProfile?.isVerified ? (
+            <><ShieldCheck size={20} /> Пройдите верификацию</>
+          ) : !hasDriverSelfie && !isOnline ? (
+            <><Camera size={20} /> Фото в профиле</>
           ) : isOnline ? (
             <><PowerOff size={20} /> Уйти с линии</>
           ) : (
@@ -580,43 +663,31 @@ export default function DriverHomePage() {
             {/* Price selector */}
             <div className="bg-gray-50 rounded-2xl p-4 mb-4">
               <p className="text-xs text-gray-500 mb-2">Ваша цена</p>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-center gap-3">
                 <button
                   onClick={() => { setBidPrice((p) => Math.max(650, p - 100)); tg?.HapticFeedback?.impactOccurred('light'); }}
-                  className="w-12 h-12 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-sm flex items-center justify-center active:scale-95"
+                  className="w-12 h-11 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:scale-95"
                 >
                   -100
                 </button>
-                <button
-                  onClick={() => { setBidPrice((p) => Math.max(650, p - 50)); tg?.HapticFeedback?.impactOccurred('light'); }}
-                  className="w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-xs flex items-center justify-center active:scale-95"
-                >
-                  -50
-                </button>
-                <span className="text-3xl font-bold text-gray-900 mx-2">
+                <span className="text-3xl font-bold text-gray-900 min-w-[6rem] text-center">
                   {bidPrice.toLocaleString()} <span className="text-base text-gray-400">тг</span>
                 </span>
                 <button
-                  onClick={() => { setBidPrice((p) => p + 50); tg?.HapticFeedback?.impactOccurred('light'); }}
-                  className="w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-xs flex items-center justify-center active:scale-95"
-                >
-                  +50
-                </button>
-                <button
                   onClick={() => { setBidPrice((p) => p + 100); tg?.HapticFeedback?.impactOccurred('light'); }}
-                  className="w-12 h-12 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold text-sm flex items-center justify-center active:scale-95"
+                  className="w-12 h-11 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm flex items-center justify-center active:scale-95"
                 >
                   +100
                 </button>
               </div>
-              {bidPrice < selectedTrip.price && (
+              {bidPrice < clientOfferForTrip(selectedTrip) && (
                 <p className="text-xs text-green-600 mt-2 text-center">
-                  На {(selectedTrip.price - bidPrice).toLocaleString()} тг дешевле клиента
+                  На {(clientOfferForTrip(selectedTrip) - bidPrice).toLocaleString()} тг дешевле клиента
                 </p>
               )}
-              {bidPrice > selectedTrip.price && (
+              {bidPrice > clientOfferForTrip(selectedTrip) && (
                 <p className="text-xs text-amber-600 mt-2 text-center">
-                  На {(bidPrice - selectedTrip.price).toLocaleString()} тг дороже клиента
+                  На {(bidPrice - clientOfferForTrip(selectedTrip)).toLocaleString()} тг дороже клиента
                 </p>
               )}
             </div>
