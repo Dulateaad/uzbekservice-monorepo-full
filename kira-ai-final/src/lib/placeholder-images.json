@@ -1,0 +1,34 @@
+{
+  "placeholderImages": [
+    {
+      "id": "plum-dress-1",
+      "description": "A luxurious deep plum evening dress.",
+      "imageUrl": "https://picsum.photos/seed/plum-dress/400/500",
+      "imageHint": "plum dress"
+    },
+    {
+      "id": "coral-blouse-1",
+      "description": "A vibrant warm coral silk blouse.",
+      "imageUrl": "https://picsum.photos/seed/coral-blouse/400/500",
+      "imageHint": "coral blouse"
+    },
+    {
+      "id": "linen-trousers-1",
+      "description": "Elegant white linen trousers.",
+      "imageUrl": "https://picsum.photos/seed/linen-trousers/400/500",
+      "imageHint": "white trousers"
+    },
+    {
+      "id": "stylish-handbag-1",
+      "description": "A modern and stylish leather handbag.",
+      "imageUrl": "https://picsum.photos/seed/stylish-handbag/400/500",
+      "imageHint": "leather handbag"
+    },
+    {
+      "id": "user-placeholder",
+      "description": "Placeholder for user photo upload.",
+      "imageUrl": "https://picsum.photos/seed/user-placeholder/400/500",
+      "imageHint": "person portrait"
+    }
+  ]
+}

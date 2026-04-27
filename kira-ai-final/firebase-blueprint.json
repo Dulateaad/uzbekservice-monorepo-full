@@ -1,0 +1,344 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user of the StyleAI application, containing their personal information and references to their uploaded content. Assumes an external authentication system manages login credentials.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for identification and communication. (Relationship: UserProfile 1:1 ExternalAuthUser)",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "profilePhotoId": {
+          "type": "string",
+          "description": "Reference to the Image entity representing the user's main profile picture. (Relationship: UserProfile 1:1 Image)"
+        },
+        "uploadedPhotoIds": {
+          "type": "array",
+          "description": "An array of references to Image entities that the user has uploaded for virtual try-on or styling. (Relationship: UserProfile 1:N Image)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a clothing item or product available in the StyleAI app, including its details and associated images, uploaded via an admin interface.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the product, highlighting features and materials."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the product."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the product, e.g., 'Shirt', 'Dress', 'Pants', 'Accessories'."
+        },
+        "imageIds": {
+          "type": "array",
+          "description": "An array of references to Image entities associated with this product, used for display. (Relationship: Product 1:N Image)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the product was added to the system.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the product details were last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "price",
+        "category",
+        "imageIds",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Image": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Image",
+      "type": "object",
+      "description": "Represents an image file stored in the system, which can be a product image, a user's uploaded photo, or an AI-generated outfit image.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Image entity."
+        },
+        "url": {
+          "type": "string",
+          "description": "The URL where the image file is stored (e.g., in a cloud storage bucket).",
+          "format": "uri"
+        },
+        "altText": {
+          "type": "string",
+          "description": "Alternative text for the image, used for accessibility and search engine optimization."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of image, indicating its purpose in the application.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uploadDateTime": {
+          "type": "string",
+          "description": "Timestamp when the image was uploaded.",
+          "format": "date-time"
+        },
+        "uploaderUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile entity of the user who uploaded this image, if applicable. Can be null if uploaded by an admin or system. (Relationship: UserProfile 1:N Image)"
+        },
+        "associatedProductId": {
+          "type": "string",
+          "description": "Reference to the Product entity this image is associated with, if it's a 'product_image'. (Relationship: Product 1:N Image)"
+        },
+        "associatedUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile entity this image is associated with, if it's a 'user_photo' or 'ai_generated_outfit'. (Relationship: UserProfile 1:N Image)"
+        },
+        "virtualTryOnRequestId": {
+          "type": "string",
+          "description": "Reference to the VirtualTryOnRequest entity this image belongs to, if it's an 'ai_generated_outfit'. This establishes the link between the generated output and the request. (Relationship: VirtualTryOnRequest 1:1 Image)"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "type",
+        "uploadDateTime"
+      ]
+    },
+    "VirtualTryOnRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VirtualTryOnRequest",
+      "type": "object",
+      "description": "Represents a user's request for an AI virtual try-on or styling suggestion, linking the input photos and product to the AI-generated output.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VirtualTryOnRequest entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile entity who initiated this request. (Relationship: UserProfile 1:N VirtualTryOnRequest)"
+        },
+        "inputUserPhotoId": {
+          "type": "string",
+          "description": "Reference to the Image entity representing the user's uploaded photo used as input for the AI try-on. (Relationship: Image 1:N VirtualTryOnRequest)"
+        },
+        "targetProductId": {
+          "type": "string",
+          "description": "Reference to the Product entity selected by the user for the virtual try-on. (Relationship: Product 1:N VirtualTryOnRequest)"
+        },
+        "requestDateTime": {
+          "type": "string",
+          "description": "Timestamp when the virtual try-on request was initiated.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current processing status of the AI request (e.g., 'pending', 'processing', 'completed', 'failed').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generatedOutfitImageId": {
+          "type": "string",
+          "description": "Reference to the Image entity representing the AI-generated photo of the user wearing the product. (Relationship: VirtualTryOnRequest 1:1 Image)"
+        },
+        "aiStylingSuggestion": {
+          "type": "string",
+          "description": "Textual suggestions provided by the AI stylist, complementing the outfit or suggesting additional items."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "inputUserPhotoId",
+        "targetProductId",
+        "requestDateTime",
+        "status",
+        "generatedOutfitImageId"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/userProfiles/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user-specific profile information. This collection is private, with documents accessible only by the user whose UID matches the 'userId' in the path. The UserProfile document's 'id' field is denormalized to match the 'userId' path parameter for Authorization Independence."
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/images/{imageId}",
+        "definition": {
+          "entityName": "Image",
+          "schema": {
+            "$ref": "#/backend/entities/Image"
+          },
+          "description": "Stores metadata for images uploaded by a user (e.g., profile photos, personal try-on input photos). This collection is private, accessible only by the user identified by 'userId'. The Image document MUST include an 'associatedUserId' field, denormalizing the 'userId' from the path for Authorization Independence, enabling simple, efficient security rules for read/write access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who owns this image, matching request.auth.uid."
+            },
+            {
+              "name": "imageId",
+              "description": "The unique ID of the image document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/virtual_try_on_requests/{requestId}",
+        "definition": {
+          "entityName": "VirtualTryOnRequest",
+          "schema": {
+            "$ref": "#/backend/entities/VirtualTryOnRequest"
+          },
+          "description": "Stores details of a user's virtual try-on request. This collection is private, accessible only by the user identified by 'userId'. The VirtualTryOnRequest document MUST include a 'userId' field, denormalizing the 'userId' from the path for Authorization Independence, enabling simple, efficient security rules for read/write access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who initiated this request, matching request.auth.uid."
+            },
+            {
+              "name": "requestId",
+              "description": "The unique ID of the virtual try-on request document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/generated_outfits/{imageId}",
+        "definition": {
+          "entityName": "Image",
+          "schema": {
+            "$ref": "#/backend/entities/Image"
+          },
+          "description": "Stores metadata for AI-generated outfit images resulting from a virtual try-on request. This collection is private, accessible only by the user identified by 'userId'. The Image document MUST include an 'associatedUserId' field, denormalizing the 'userId' from the path for Authorization Independence, and a 'virtualTryOnRequestId' to link back to the originating request. This enables simple, efficient security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who owns this generated outfit image, matching request.auth.uid."
+            },
+            {
+              "name": "imageId",
+              "description": "The unique ID of the generated outfit image document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Contains details about products available in the app. This collection is publicly readable by all users, but writable only by authenticated administrators. The Product document's 'id' field is denormalized to match the 'productId' path parameter."
+        }
+      },
+      {
+        "path": "/product_images/{imageId}",
+        "definition": {
+          "entityName": "Image",
+          "schema": {
+            "$ref": "#/backend/entities/Image"
+          },
+          "description": "Stores metadata for images associated with products (e.g., product display images). This collection is publicly readable by all users, but writable only by authenticated administrators. The Image document MUST include an 'associatedProductId' field to explicitly link it to a Product, ensuring Authorization Independence for read access and rule clarity for admin writes.",
+          "params": [
+            {
+              "name": "imageId",
+              "description": "The unique ID of the product image document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "Role",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "A collection used for Database Access Control (DBAC) to designate administrators. The mere existence of a document with a 'userId' in this path grants administrative privileges to that user. This enables simple `exists()` checks in security rules for admin operations, upholding Authorization Independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user designated as an administrator."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed following the CORE DESIGN PRINCIPLES and DESIGN STRATEGY MANDATES to ensure security, scalability, and debuggability. The primary strategy employed for **Authorization Independence** is strategic denormalization and structural segregation, eliminating the need for `get()` calls in security rules. For **QAPs (Rules are not Filters)**, the structure separates data with different security postures into distinct collections or subcollections, enabling secure `list` operations without relying on rule filtering.\n\nHere's how the structure achieves this:\n\n1.  **User Profiles and Private Data (`/userProfiles/{userId}`):** User profiles and all user-owned data (uploaded photos, virtual try-on requests, and AI-generated outfits) are stored under a user-specific path: `/userProfiles/{userId}/...`. This leverages **Path-Based Ownership** (Strategy C) where the `{userId}` wildcard naturally aligns with `request.auth.uid`. Each document within these subcollections (`/userProfiles/{userId}/images`, `/userProfiles/{userId}/virtual_try_on_requests`, `/userProfiles/{userId}/generated_outfits`) will explicitly contain an `associatedUserId` or `userId` field that mirrors the `userId` in the path. This **denormalization of the owner ID** (Strategy A) is crucial. When a user tries to access a document, security rules can simply check `resource.data.associatedUserId == request.auth.uid` (or `resource.data.userId == request.auth.uid`) without needing to fetch the parent document, thus ensuring Authorization Independence. `list` operations on these subcollections are inherently secure as only the authenticated user can access their own subcollection.\n\n2.  **Public Products and Images (`/products/{productId}`, `/product_images/{imageId}`):** Product information and associated product images are publicly readable. They are placed in top-level collections to reflect their public nature and **Homogeneous Security Posture** (Strategy B). Access for these collections is split: `read` is public, `write` is restricted to administrators. This separation prevents mixing public and private data, simplifying rules. `list` operations are fully supported and secure because all documents in these collections are intentionally public for read access.\n\n3.  **Admin Roles (`/roles_admin/{userId}`):** To manage administrative access for features like product uploads, a dedicated top-level collection `/roles_admin/{userId}` is used. An administrator is identified by the mere *existence* of a document at `/roles_admin/$(request.auth.uid)`. This follows the **Global Roles (DBAC) via Existence over Content** pattern (Strategy C). Security rules can check `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))` to grant elevated privileges without relying on custom claims or complex `get()` operations, ensuring Authorization Independence for role checks.\n\n4.  **Structural Segregation for Images:** The generic `Image` entity is broken down into specific collections based on its use case and security requirements. User-uploaded/profile images are under `/userProfiles/{userId}/images`, AI-generated images are under `/userProfiles/{userId}/generated_outfits`, and public product images are in `/product_images`. This **Structural Segregation** (Strategy B) ensures that all documents within a given collection path share the same security requirements, simplifying rule logic and supporting QAPs."
+  }
+}

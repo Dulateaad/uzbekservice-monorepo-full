@@ -1,0 +1,11 @@
+# Settings to manage and configure a Firebase App Hosting backend.
+# https://firebase.google.com/docs/app-hosting/configure
+#
+# Сборка в Cloud Build выставляет FIREBASE_APP_HOSTING — в next.config.ts
+# тогда включается output: 'standalone' (нужно адаптеру apphosting-nextjs).
+# Статический деплой на Hosting (GitHub Actions) этой переменной не задаёт → export в out/.
+
+runConfig:
+  # Increase this value if you'd like to automatically spin up
+  # more instances in response to increased traffic.
+  maxInstances: 10

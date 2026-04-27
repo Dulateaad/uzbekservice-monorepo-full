@@ -17,9 +17,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   useEffect(() => {
-    // Load cart from local storage on component mount (client-side only)
-    if (typeof window === 'undefined') return;
-    
+    // Load cart from local storage on component mount
     try {
       const savedCart = localStorage.getItem('kira-cart');
       if (savedCart) {
@@ -33,9 +31,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Save cart to local storage whenever it changes (client-side only)
-    if (typeof window === 'undefined') return;
-    
+    // Save cart to local storage whenever it changes
     try {
       localStorage.setItem('kira-cart', JSON.stringify(items));
     } catch (error) {
@@ -72,8 +68,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => {
     setItems([]);
-    if (typeof window === 'undefined') return;
-    
     try {
       localStorage.removeItem('kira-cart');
     } catch (error) {
