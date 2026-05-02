@@ -1,15 +1,87 @@
 {
   "hosting": {
+    "site": "studio-4612461108-2107c",
     "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
+    "headers": [
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "**/*.txt",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ],
+    "redirects": [
+      { "source": "/trends/", "destination": "/trends", "type": 302 },
+      { "source": "/cart/", "destination": "/cart", "type": 302 },
+      { "source": "/profile/", "destination": "/profile", "type": 302 },
+      { "source": "/login/", "destination": "/login", "type": 302 },
+      { "source": "/mood/", "destination": "/mood", "type": 302 },
+      { "source": "/stylist/", "destination": "/stylist", "type": 302 },
+      { "source": "/dashboard/", "destination": "/dashboard", "type": 302 },
+      { "source": "/regpartner/", "destination": "/regpartner", "type": 302 },
+      {
+        "source": "/product/",
+        "destination": "/product",
+        "type": 302
+      }
+    ],
     "rewrites": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "/product",
+        "destination": "/product.html"
+      },
+      {
+        "source": "/trends",
+        "destination": "/trends.html"
+      },
+      {
+        "source": "/cart",
+        "destination": "/cart.html"
+      },
+      {
+        "source": "/profile",
+        "destination": "/profile.html"
+      },
+      {
+        "source": "/login",
+        "destination": "/login.html"
+      },
+      {
+        "source": "/mood",
+        "destination": "/mood.html"
+      },
+      {
+        "source": "/stylist",
+        "destination": "/stylist.html"
+      },
+      {
+        "source": "/dashboard",
+        "destination": "/dashboard.html"
+      },
+      {
+        "source": "/regpartner",
+        "destination": "/regpartner.html"
+      },
+      {
+        "source": "/product/:id",
+        "destination": "/product-id-redirect.html"
       }
     ]
   }
