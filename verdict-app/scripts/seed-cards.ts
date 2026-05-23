@@ -30,13 +30,16 @@ const firebaseConfig = {
 };
 
 const CARDS = [
-  { optionA: 'Месси', optionB: 'Роналду', category: 'popular' },
-  { optionA: 'Мбаппе', optionB: 'Холанд', category: 'popular' },
-  { optionA: 'iPhone', optionB: 'Samsung', category: 'popular' },
-  { optionA: 'Кофе', optionB: 'Чай', category: 'popular' },
-  { optionA: 'Пицца', optionB: 'Суши', category: 'popular' },
-  { optionA: 'PlayStation', optionB: 'Xbox', category: 'gaming' },
-  { optionA: 'Marvel', optionB: 'DC', category: 'gaming' },
+  { optionA: 'Месси', optionB: 'Роналду', category: 'popular', tags: ['champion:football'] },
+  { optionA: 'Мбаппе', optionB: 'Холанд', category: 'popular', tags: ['champion:football'] },
+  { optionA: 'iPhone', optionB: 'Samsung', category: 'popular', tags: ['champion:phones'] },
+  { optionA: 'Кофе', optionB: 'Чай', category: 'popular', tags: ['champion:food'] },
+  { optionA: 'Пицца', optionB: 'Суши', category: 'popular', tags: ['champion:food'] },
+  { optionA: 'Барселона', optionB: 'Реал Мадрид', category: 'popular', tags: ['champion:football'] },
+  { optionA: 'Париж', optionB: 'Рим', category: 'popular', tags: ['champion:cities'] },
+  { optionA: 'Брэд Питт', optionB: 'Леонардо ДиКаприо', category: 'popular', tags: ['champion:cinema'] },
+  { optionA: 'PlayStation', optionB: 'Xbox', category: 'gaming', tags: ['champion:gaming'] },
+  { optionA: 'Marvel', optionB: 'DC', category: 'gaming', tags: ['champion:cinema'] },
   { optionA: 'Деньги', optionB: 'Свобода', category: 'paradox' },
   { optionA: 'Любовь', optionB: 'Деньги', category: 'paradox' },
   { optionA: 'Разум', optionB: 'Сердце', category: 'philosophy' },

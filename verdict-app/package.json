@@ -19,6 +19,10 @@
     "deploy:all": "npm run build && firebase deploy --project verdict-c5e0d",
     "deploy:firestore": "firebase deploy --only firestore --project verdict-c5e0d",
     "deploy:hosting": "firebase deploy --only hosting --project verdict-c5e0d",
+    "generate:city": "tsx scripts/generate-city-cards.ts",
+    "generate:city:all": "tsx scripts/generate-city-cards.ts --all",
+    "generate:city:refresh": "tsx scripts/generate-city-cards.ts --refresh",
+    "tag:champion": "tsx scripts/tag-champion-sectors-admin.ts",
     "mirror:images": "tsx scripts/mirror-images-to-storage.ts",
     "deploy:storage": "firebase deploy --only storage --project verdict-c5e0d"
   },

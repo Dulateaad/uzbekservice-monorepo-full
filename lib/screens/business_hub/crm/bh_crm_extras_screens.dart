@@ -202,6 +202,7 @@ class BHCrmMoreScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final spec = ref.watch(bhBusinessVerticalSpecProvider);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -219,7 +220,7 @@ class BHCrmMoreScreen extends ConsumerWidget {
         ),
         ListTile(
           leading: const Icon(Icons.inventory_2_outlined),
-          title: const Text('Продукты'),
+          title: Text(spec.crmCatalogTitle),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('/home/services/business-hub/crm/products'),
         ),
@@ -475,8 +476,9 @@ class _BHCrmProductsScreenState extends ConsumerState<BHCrmProductsScreen> {
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('#,###', 'ru');
+    final spec = ref.watch(bhBusinessVerticalSpecProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Продукты')),
+      appBar: AppBar(title: Text(spec.crmCatalogTitle)),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAdd(context),
         child: const Icon(Icons.add),
@@ -505,10 +507,11 @@ class _BHCrmProductsScreenState extends ConsumerState<BHCrmProductsScreen> {
   void _showAdd(BuildContext context) {
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
+    final spec = ref.read(bhBusinessVerticalSpecProvider);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Новый продукт'),
+        title: Text(spec.newCatalogItemDialogTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

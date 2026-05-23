@@ -62,7 +62,7 @@ class _AnamaPulseScreenState extends ConsumerState<AnamaPulseScreen> {
         deviceId: _deviceId,
       );
       if (!mounted) return;
-      context.go('/pilot/result', extra: result);
+      context.go('/result', extra: result);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

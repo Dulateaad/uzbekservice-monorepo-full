@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "odo-business-hub"
+    "default": "odo-business-hub",
+    "anama": "anama-app"
   }
 }

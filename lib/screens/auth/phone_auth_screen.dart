@@ -12,6 +12,7 @@ import '../../providers/firestore_auth_provider.dart';
 import '../../widgets/simple_country_selector.dart';
 import '../../widgets/cloudflare_turnstile_widget.dart';
 import '../../services/cloudflare_turnstile_service.dart';
+import '../../utils/phone_input_normalize.dart';
 
 class PhoneAuthScreen extends ConsumerStatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -101,48 +102,12 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
 
     try {
       if (_selectedUserType == 'client') {
-        // Форматируем номер телефона
-        String phoneNumber = _phoneController.text.trim();
-        
-        // Убираем все пробелы, дефисы и скобки
-        phoneNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-        
-        if (!phoneNumber.startsWith('+')) {
-          if (_selectedCountryCode == 'UZ') {
-            // Узбекистан: +998XXXXXXXXX (13 символов)
-            if (phoneNumber.startsWith('998')) {
-              phoneNumber = '+$phoneNumber';
-            } else if (phoneNumber.startsWith('9') && phoneNumber.length == 9) {
-              // 9XXXXXXXX (9 цифр) -> +9989XXXXXXXX
-              phoneNumber = '+998$phoneNumber';
-            } else if (phoneNumber.length >= 9) {
-              phoneNumber = '+998$phoneNumber';
-            } else {
-              phoneNumber = '+998$phoneNumber';
-            }
-          } else if (_selectedCountryCode == 'KZ') {
-            // Казахстан: +7XXXXXXXXXX (12 символов, 11 цифр после +)
-            if (phoneNumber.startsWith('7') && phoneNumber.length == 11) {
-              // 7XXXXXXXXXX (11 цифр, начинается с 7) -> +7XXXXXXXXXX
-              phoneNumber = '+$phoneNumber';
-            } else if (phoneNumber.startsWith('7') && phoneNumber.length == 10) {
-              // 7XXXXXXXXX (10 цифр) -> +7XXXXXXXXXX (добавляем еще одну цифру? Нет, это неправильно)
-              // Если 10 цифр начинается с 7, возможно это уже правильный формат без первой 7
-              phoneNumber = '+7$phoneNumber';
-            } else if (!phoneNumber.startsWith('7') && phoneNumber.length == 10) {
-              // XXXXXXXXXX (10 цифр, не начинается с 7) -> +7XXXXXXXXXX
-              phoneNumber = '+7$phoneNumber';
-            } else if (phoneNumber.length == 9) {
-              // XXXXXXXXX (9 цифр) -> +7XXXXXXXXXX (добавляем 7 в начало)
-              phoneNumber = '+7$phoneNumber';
-            } else {
-              // По умолчанию добавляем +7
-              phoneNumber = '+7$phoneNumber';
-            }
-          }
-        }
-        
-        print('🌍 Страна: $_selectedCountryCode, Введенный номер: ${_phoneController.text}, Отформатированный: $phoneNumber');
+        final phoneNumber = PhoneInputNormalize.toE164(
+          raw: _phoneController.text.trim(),
+          countryCode: _selectedCountryCode,
+        );
+
+        print('🌍 Страна: $_selectedCountryCode, введено: ${_phoneController.text}, E.164: $phoneNumber');
 
         print('📱 Отправка SMS на номер: $phoneNumber');
         
@@ -367,26 +332,10 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                       }
                     }
                   },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Введите номер телефона';
-                    }
-                    // Проверяем, что номер начинается с правильного префикса
-                    final expectedPrefix = _selectedCountryCode == 'UZ' ? '+998' : '+7';
-                    if (!value.startsWith(expectedPrefix)) {
-                      return 'Номер должен начинаться с $expectedPrefix';
-                    }
-                    // Проверяем минимальную длину (префикс + минимум 9 цифр)
-                    final numberOnly = value.replaceAll(RegExp(r'[^\d]'), '');
-                    if (numberOnly.length < (_selectedCountryCode == 'UZ' ? 12 : 11)) {
-                      return 'Номер телефона слишком короткий';
-                    }
-                    // Проверяем на узбекские (+998) и казахские (+7) номера
-                    if (!value.startsWith('+998') && !value.startsWith('+7')) {
-                      return 'Введите корректный номер (+998 или +7)';
-                    }
-                    return null;
-                  },
+                  validator: (value) => PhoneInputNormalize.validateNationalInput(
+                    value: value,
+                    countryCode: _selectedCountryCode,
+                  ),
                 ),
                 
                 const SizedBox(height: 24),

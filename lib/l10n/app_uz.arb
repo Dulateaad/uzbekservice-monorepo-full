@@ -73,7 +73,7 @@
   "companiesCannotApply": "Kompaniyalar vakansiyalarga ariza bera olmaydi",
   "applicationSent": "Ariza yuborildi!",
   "applicationError": "Ariza yuborishda xatolik",
-  "onlyCompaniesCanCreate": "Faqat kompaniyalar vakansiya yarata oladi",
+  "onlyCompaniesCanCreate": "Vakansiyani kompaniyalar, mutaxassislar yoki Business Hub dagi kompaniya egasi joylashtira oladi (Business Hub bo‘limida kompaniya yarating)",
   "vacancyCreated": "Vakansiya yaratildi!",
   "vacancyCreateError": "Vakansiya yaratishda xatolik",
   "vacancyTitle": "Vakansiya nomi *",

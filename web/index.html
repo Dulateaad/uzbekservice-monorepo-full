@@ -45,26 +45,12 @@
   <!-- PWA: Register Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        // Регистрируем наш service worker для PWA
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('✅ PWA Service Worker зарегистрирован:', registration.scope);
-            
-            // Проверяем обновления
-            registration.addEventListener('updatefound', () => {
-              const newWorker = registration.installing;
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Новый service worker доступен, можно показать уведомление
-                  console.log('🔄 Новый Service Worker доступен');
-                }
-              });
-            });
-          })
-          .catch((error) => {
-            console.warn('⚠️ Ошибка регистрации PWA Service Worker:', error);
-          });
+      // Сбрасываем ВСЕ старые кэши и service workers
+      if ('caches' in window) {
+        caches.keys().then(names => names.forEach(name => caches.delete(name)));
+      }
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
       });
     }
   </script>

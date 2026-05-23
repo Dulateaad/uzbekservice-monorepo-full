@@ -37,6 +37,9 @@ class _SpecialistListScreenState extends ConsumerState<SpecialistListScreen> {
   }
 
   String _getCategoryName() {
+    if (widget.categoryId == 'all') {
+      return 'Все специалисты';
+    }
     final category = AppConstants.serviceCategories.firstWhere(
       (cat) => cat['id'] == widget.categoryId,
       orElse: () => {'name': 'Специалисты'},

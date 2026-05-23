@@ -18,7 +18,7 @@ class OdoVacancyLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     // Пытаемся загрузить изображение из assets
     return Image.asset(
-      'assets/images/logos/odo_vacancy.png',
+      'assets/images/logos/odo_vacancy.jpg',
       width: size,
       height: size,
       fit: BoxFit.contain,

@@ -73,7 +73,7 @@
   "companiesCannotApply": "Компании не могут подавать на вакансии",
   "applicationSent": "Отклик отправлен!",
   "applicationError": "Ошибка при отправке отклика",
-  "onlyCompaniesCanCreate": "Только компании могут создавать вакансии",
+  "onlyCompaniesCanCreate": "Размещать вакансии могут компании, специалисты и владельцы компании в Business Hub (создайте компанию в разделе Business Hub)",
   "vacancyCreated": "Вакансия создана!",
   "vacancyCreateError": "Ошибка при создании вакансии",
   "vacancyTitle": "Название вакансии *",

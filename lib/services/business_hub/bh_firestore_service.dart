@@ -11,6 +11,10 @@ import '../../models/business_hub/lead.dart';
 import '../../models/business_hub/deal.dart';
 import '../../models/business_hub/activity.dart';
 import '../../models/work.dart';
+import '../../models/business_hub/bh_installment.dart';
+import '../../models/business_hub/bh_finance_transaction.dart';
+import '../../models/business_hub/bh_chart_account.dart';
+import '../../models/business_hub/bh_journal_entry.dart';
 
 class BHFirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -28,6 +32,10 @@ class BHFirestoreService {
   CollectionReference get _deals => _db.collection('bh_deals');
   CollectionReference get _activities => _db.collection('bh_activities');
   CollectionReference get _works => _db.collection('works');
+  CollectionReference get _installments => _db.collection('bh_installments');
+  CollectionReference get _financeTx => _db.collection('bh_finance_transactions');
+  CollectionReference get _chartAccounts => _db.collection('bh_chart_accounts');
+  CollectionReference get _journalEntries => _db.collection('bh_journal_entries');
 
   // ── Universal Work ───────────────────────────────────────────
 
@@ -46,10 +54,15 @@ class BHFirestoreService {
     double? price,
     String currency = 'UZS',
     Map<String, dynamic>? metadata,
+    String? dealId,
     required String createdBy,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
+    final mergedMeta = {
+      if (metadata != null) ...metadata,
+      if (dealId != null) 'dealId': dealId,
+    };
     final work = Work(
       id: id,
       organizationId: organizationId,
@@ -65,12 +78,37 @@ class BHFirestoreService {
       parentWorkId: parentWorkId,
       price: price,
       currency: currency,
-      metadata: metadata,
+      metadata: mergedMeta.isEmpty ? null : mergedMeta,
+      dealId: dealId,
       createdBy: createdBy,
       createdAt: now,
       updatedAt: now,
     );
     await _works.doc(id).set(work.toMap());
+    return work;
+  }
+
+  /// Заказ (Work) из выигранной сделки — связь 1:1, поля подтягиваются из сделки.
+  Future<Work> createOrderFromDeal({
+    required BHDeal deal,
+    required String createdBy,
+    WorkType orderType = WorkType.order,
+  }) async {
+    final work = await createWork(
+      organizationId: deal.organizationId,
+      type: orderType,
+      title: 'Заказ: ${deal.title}',
+      description: deal.notes,
+      status: WorkStatus.created,
+      clientId: deal.contactId ?? deal.counterpartyId,
+      clientName: deal.counterpartyName,
+      price: deal.amount,
+      currency: deal.currency,
+      dealId: deal.id,
+      metadata: {'pipelineId': deal.pipelineId, 'source': 'deal_won'},
+      createdBy: createdBy,
+    );
+    await updateDeal(deal.copyWith(workId: work.id));
     return work;
   }
 
@@ -118,6 +156,7 @@ class BHFirestoreService {
     required String ownerId,
     required String name,
     required String industry,
+    String businessVerticalId = 'services',
     String? inn,
     String? legalForm,
     int employeeCount = 1,
@@ -131,6 +170,7 @@ class BHFirestoreService {
       ownerId: ownerId,
       name: name,
       industry: industry,
+      businessVerticalId: businessVerticalId,
       inn: inn,
       legalForm: legalForm,
       employeeCount: employeeCount,
@@ -442,8 +482,11 @@ class BHFirestoreService {
       salesScore = 20;
     }
     // Бонус от CRM: выигранные сделки
-    if (wonDealsCount >= 5) salesScore = (salesScore + 10).clamp(0, 100).toDouble();
-    else if (wonDealsCount >= 2) salesScore = (salesScore + 5).clamp(0, 100).toDouble();
+    if (wonDealsCount >= 5) {
+      salesScore = (salesScore + 10).clamp(0, 100).toDouble();
+    } else if (wonDealsCount >= 2) {
+      salesScore = (salesScore + 5).clamp(0, 100).toDouble();
+    }
     // Бонус от воронки (потенциал)
     if (dealsInFunnel >= 5 && pipelineValue > 0) salesScore = (salesScore + 5).clamp(0, 100).toDouble();
     // Бонус от лидов
@@ -632,6 +675,9 @@ class BHFirestoreService {
     String? userName,
     String? managerId,
   }) async {
+    final existing = await getMemberByUser(organizationId, userId);
+    if (existing != null) return existing;
+
     final id = _uuid.v4();
     final now = DateTime.now();
     final member = BHOrganizationMember(
@@ -816,6 +862,25 @@ class BHFirestoreService {
 
   Future<void> updateLead(BHLead lead) async {
     await _leads.doc(lead.id).update(lead.copyWith(updatedAt: DateTime.now()).toMap());
+    await _ensureDealForQualifiedLead(lead);
+  }
+
+  /// ТЗ: лид «Квалифицирован» → автосоздание сделки (если ещё нет по этому лиду).
+  Future<void> _ensureDealForQualifiedLead(BHLead lead) async {
+    if (lead.status != BHLeadStatus.qualified) return;
+    final snap = await _deals.where('leadId', isEqualTo: lead.id).limit(1).get();
+    if (snap.docs.isNotEmpty) return;
+    await createDeal(
+      organizationId: lead.organizationId,
+      title: 'Сделка: ${lead.name}',
+      amount: 0,
+      currency: 'UZS',
+      stage: BHDealStage.new_,
+      counterpartyName: lead.company ?? lead.name,
+      leadId: lead.id,
+      assignedTo: lead.assignedTo,
+      notes: lead.notes,
+    );
   }
 
   Future<void> deleteLead(String id) async {
@@ -898,6 +963,501 @@ class BHFirestoreService {
 
   Future<void> deleteDeal(String id) async {
     await _deals.doc(id).delete();
+  }
+
+  // ── График оплат и финансы (Business Hub ядро, ТЗ этап 1) ───────
+
+  /// Равные платежи на [months] (3 / 6 / 12).
+  Future<List<BHInstallment>> createEqualInstallmentSchedule({
+    required String organizationId,
+    required String workId,
+    required double totalAmount,
+    String currency = 'UZS',
+    required int months,
+    DateTime? firstDue,
+  }) async {
+    if (months <= 0 || totalAmount <= 0) return [];
+    final groupId = _uuid.v4();
+    final per = totalAmount / months;
+    final start = firstDue ?? DateTime.now().add(const Duration(days: 1));
+    final now = DateTime.now();
+    final list = <BHInstallment>[];
+    for (var i = 0; i < months; i++) {
+      final due = DateTime(start.year, start.month + i, start.day);
+      final id = _uuid.v4();
+      final row = BHInstallment(
+        id: id,
+        organizationId: organizationId,
+        workId: workId,
+        scheduleGroupId: groupId,
+        sequenceIndex: i,
+        dueDate: due,
+        amount: per,
+        paidAmount: 0,
+        status: BHInstallmentStatus.unpaid,
+        currency: currency,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await _installments.doc(id).set(row.toMap());
+      list.add(row);
+    }
+    return list;
+  }
+
+  Future<List<BHInstallment>> getInstallmentsForWork(String workId) async {
+    final snap = await _installments
+        .where('workId', isEqualTo: workId)
+        .get();
+    return snap.docs
+        .map((d) => BHInstallment.fromMap(d.data() as Map<String, dynamic>))
+        .toList()
+      ..sort((a, b) => a.sequenceIndex.compareTo(b.sequenceIndex));
+  }
+
+  Future<BHInstallment?> getInstallment(String id) async {
+    final doc = await _installments.doc(id).get();
+    if (!doc.exists) return null;
+    return BHInstallment.fromMap(doc.data() as Map<String, dynamic>);
+  }
+
+  /// Частичная/полная оплата по строке графика.
+  Future<BHInstallment> applyInstallmentPayment({
+    required String installmentId,
+    required double amount,
+    required String organizationId,
+  }) async {
+    final docRef = _installments.doc(installmentId);
+    final snap = await docRef.get();
+    if (!snap.exists) throw StateError('Installment not found');
+    var row = BHInstallment.fromMap(snap.data() as Map<String, dynamic>);
+    if (row.organizationId != organizationId) {
+      throw StateError('Organization mismatch');
+    }
+    final newPaid = (row.paidAmount + amount).clamp(0.0, row.amount);
+    BHInstallmentStatus st;
+    if (newPaid <= 0) {
+      st = BHInstallmentStatus.unpaid;
+    } else if (newPaid + 0.001 < row.amount) {
+      st = BHInstallmentStatus.partial;
+    } else {
+      st = BHInstallmentStatus.paid;
+    }
+    row = row.copyWith(paidAmount: newPaid, status: st, updatedAt: DateTime.now());
+    await docRef.update(row.toMap());
+
+    await _appendFinanceTransaction(
+      organizationId: organizationId,
+      kind: BHFinanceTxKind.income,
+      amount: amount,
+      currency: row.currency,
+      refType: 'installment',
+      refId: installmentId,
+      note: 'Оплата по графику',
+    );
+    await _postCashReceiptJournalIfAccounting(
+      organizationId: organizationId,
+      amount: amount,
+      currency: row.currency,
+      referenceType: 'installment_payment',
+      referenceId: installmentId,
+      note: 'Оплата клиента (Cash → Revenue)',
+    );
+    return row;
+  }
+
+  Future<void> _appendFinanceTransaction({
+    required String organizationId,
+    required BHFinanceTxKind kind,
+    required double amount,
+    String currency = 'UZS',
+    String? refType,
+    String? refId,
+    String? note,
+  }) async {
+    final id = _uuid.v4();
+    final tx = BHFinanceTransaction(
+      id: id,
+      organizationId: organizationId,
+      kind: kind,
+      amount: amount,
+      currency: currency,
+      refType: refType,
+      refId: refId,
+      note: note,
+      createdAt: DateTime.now(),
+    );
+    await _financeTx.doc(id).set(tx.toMap());
+  }
+
+  Future<List<BHFinanceTransaction>> getFinanceTransactions(
+    String organizationId, {
+    int limit = 200,
+  }) async {
+    final snap = await _financeTx
+        .where('organizationId', isEqualTo: organizationId)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs
+        .map((d) => BHFinanceTransaction.fromMap(d.data() as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Сегодня: сделки в воронке, открытые задачи, платежи (сегодня или просрочка).
+  Future<({int pipelineDeals, int openTasks, int duePayments})> getCoreTodaySnapshot(
+    String organizationId,
+  ) async {
+    final deals = await getDeals(organizationId, limit: 200);
+    const activeStages = [
+      BHDealStage.new_,
+      BHDealStage.qualification,
+      BHDealStage.proposal,
+      BHDealStage.negotiation,
+    ];
+    var pipelineDeals = 0;
+    for (final d in deals) {
+      if (activeStages.contains(d.stage)) {
+        pipelineDeals++;
+      }
+    }
+
+    final taskSnap = await _tasks.where('organizationId', isEqualTo: organizationId).limit(120).get();
+    var openTasks = 0;
+    for (final doc in taskSnap.docs) {
+      final t = BHTask.fromMap(doc.data() as Map<String, dynamic>);
+      if (t.status != BHTaskStatus.done) {
+        openTasks++;
+      }
+    }
+
+    final instSnap = await _installments.where('organizationId', isEqualTo: organizationId).limit(400).get();
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    var duePayments = 0;
+    for (final doc in instSnap.docs) {
+      final r = BHInstallment.fromMap(doc.data() as Map<String, dynamic>);
+      if (r.status == BHInstallmentStatus.paid) {
+        continue;
+      }
+      final due = DateTime(r.dueDate.year, r.dueDate.month, r.dueDate.day);
+      if (!due.isAfter(today)) {
+        duePayments++;
+      }
+    }
+
+    return (pipelineDeals: pipelineDeals, openTasks: openTasks, duePayments: duePayments);
+  }
+
+  Future<BHDeal?> getDealByLeadId(String leadId) async {
+    final snap = await _deals.where('leadId', isEqualTo: leadId).limit(1).get();
+    if (snap.docs.isEmpty) {
+      return null;
+    }
+    return BHDeal.fromMap(snap.docs.first.data() as Map<String, dynamic>);
+  }
+
+  /// Сводка Business Mode: баланс по транзакциям и открытая дебиторка по графику.
+  Future<({double balance, double receivables})> getFinanceSummary(String organizationId) async {
+    final txs = await getFinanceTransactions(organizationId, limit: 500);
+    var balance = 0.0;
+    for (final t in txs) {
+      switch (t.kind) {
+        case BHFinanceTxKind.income:
+        case BHFinanceTxKind.arDecrease:
+          balance += t.amount;
+          break;
+        case BHFinanceTxKind.expense:
+        case BHFinanceTxKind.apIncrease:
+        case BHFinanceTxKind.apDecrease:
+          balance -= t.amount;
+          break;
+        default:
+          break;
+      }
+    }
+    final instSnap =
+        await _installments.where('organizationId', isEqualTo: organizationId).limit(500).get();
+    var receivables = 0.0;
+    for (final d in instSnap.docs) {
+      final r = BHInstallment.fromMap(d.data() as Map<String, dynamic>);
+      if (r.status != BHInstallmentStatus.paid) {
+        receivables += r.remaining;
+      }
+    }
+    return (balance: balance, receivables: receivables);
+  }
+
+  /// Дебиторка + кредиторка (нетто по BHFinanceTxKind apIncrease − apDecrease).
+  Future<({double balance, double receivables, double payables})> getExtendedFinanceSummary(
+    String organizationId,
+  ) async {
+    final base = await getFinanceSummary(organizationId);
+    final txs = await getFinanceTransactions(organizationId, limit: 800);
+    var apNet = 0.0;
+    for (final t in txs) {
+      switch (t.kind) {
+        case BHFinanceTxKind.apIncrease:
+          apNet += t.amount;
+          break;
+        case BHFinanceTxKind.apDecrease:
+          apNet -= t.amount;
+          break;
+        default:
+          break;
+      }
+    }
+    if (apNet < 0) {
+      apNet = 0;
+    }
+    return (balance: base.balance, receivables: base.receivables, payables: apNet);
+  }
+
+  Future<List<BHInstallment>> getInstallmentsForOrganization(String organizationId, {int limit = 500}) async {
+    final snap = await _installments.where('organizationId', isEqualTo: organizationId).limit(limit).get();
+    return snap.docs
+        .map((d) => BHInstallment.fromMap(d.data() as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Начисление обязательства перед поставщиком + при Accounting — Dr Expense / Cr AP.
+  Future<void> recordVendorBill({
+    required String organizationId,
+    required double amount,
+    String currency = 'UZS',
+    String? note,
+  }) async {
+    await _appendFinanceTransaction(
+      organizationId: organizationId,
+      kind: BHFinanceTxKind.apIncrease,
+      amount: amount,
+      currency: currency,
+      refType: 'vendor_bill',
+      note: note ?? 'Кредиторка (обязательство)',
+    );
+    final org = await getOrganization(organizationId);
+    if (org != null && org.accountingModeEnabled && org.financeMode == 'accounting') {
+      await ensureDefaultChartAccounts(organizationId);
+      await createJournalEntry(
+        organizationId: organizationId,
+        date: DateTime.now(),
+        debitAccountId: _acctId(organizationId, 'expense'),
+        creditAccountId: _acctId(organizationId, 'ap'),
+        amount: amount,
+        currency: currency,
+        referenceType: 'vendor_bill',
+        note: note,
+      );
+    }
+  }
+
+  /// Погашение кредиторки: Dr AP / Cr Cash.
+  Future<void> recordVendorPayment({
+    required String organizationId,
+    required double amount,
+    String currency = 'UZS',
+    String? note,
+  }) async {
+    await _appendFinanceTransaction(
+      organizationId: organizationId,
+      kind: BHFinanceTxKind.apDecrease,
+      amount: amount,
+      currency: currency,
+      refType: 'vendor_payment',
+      note: note ?? 'Оплата поставщику',
+    );
+    final org = await getOrganization(organizationId);
+    if (org != null && org.accountingModeEnabled && org.financeMode == 'accounting') {
+      await ensureDefaultChartAccounts(organizationId);
+      await createJournalEntry(
+        organizationId: organizationId,
+        date: DateTime.now(),
+        debitAccountId: _acctId(organizationId, 'ap'),
+        creditAccountId: _acctId(organizationId, 'cash'),
+        amount: amount,
+        currency: currency,
+        referenceType: 'vendor_payment',
+        note: note,
+      );
+    }
+  }
+
+  String _acctId(String organizationId, String code) => '${organizationId}_acct_$code';
+
+  Future<void> ensureDefaultChartAccounts(String organizationId) async {
+    final defs = <(String code, String name, BHChartAccountKind kind)>[
+      ('cash', 'Деньги', BHChartAccountKind.cash),
+      ('ar', 'Дебиторка', BHChartAccountKind.ar),
+      ('ap', 'Кредиторка', BHChartAccountKind.ap),
+      ('revenue', 'Доход', BHChartAccountKind.revenue),
+      ('expense', 'Расход', BHChartAccountKind.expense),
+    ];
+    final now = DateTime.now();
+    for (final d in defs) {
+      final id = _acctId(organizationId, d.$1);
+      final ref = _chartAccounts.doc(id);
+      final doc = await ref.get();
+      if (doc.exists) continue;
+      await ref.set(
+        BHChartAccount(
+          id: id,
+          organizationId: organizationId,
+          code: d.$1,
+          name: d.$2,
+          kind: d.$3,
+          createdAt: now,
+        ).toMap(),
+      );
+    }
+  }
+
+  Future<List<BHChartAccount>> getChartAccounts(String organizationId) async {
+    final snap = await _chartAccounts.where('organizationId', isEqualTo: organizationId).get();
+    final list =
+        snap.docs.map((d) => BHChartAccount.fromMap(d.data() as Map<String, dynamic>)).toList();
+    list.sort((a, b) => a.code.compareTo(b.code));
+    return list;
+  }
+
+  Future<BHJournalEntry> createJournalEntry({
+    required String organizationId,
+    required DateTime date,
+    required String debitAccountId,
+    required String creditAccountId,
+    required double amount,
+    String currency = 'UZS',
+    String? referenceType,
+    String? referenceId,
+    String? note,
+  }) async {
+    final id = _uuid.v4();
+    final row = BHJournalEntry(
+      id: id,
+      organizationId: organizationId,
+      date: date,
+      debitAccountId: debitAccountId,
+      creditAccountId: creditAccountId,
+      amount: amount,
+      currency: currency,
+      referenceType: referenceType,
+      referenceId: referenceId,
+      note: note,
+      createdAt: DateTime.now(),
+    );
+    await _journalEntries.doc(id).set(row.toMap());
+    return row;
+  }
+
+  Future<List<BHJournalEntry>> getJournalEntries(
+    String organizationId, {
+    int limit = 500,
+  }) async {
+    final snap =
+        await _journalEntries.where('organizationId', isEqualTo: organizationId).limit(limit * 2).get();
+    final list =
+        snap.docs.map((d) => BHJournalEntry.fromMap(d.data() as Map<String, dynamic>)).toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+    if (list.length > limit) {
+      return list.sublist(0, limit);
+    }
+    return list;
+  }
+
+  Future<void> _postCashReceiptJournalIfAccounting({
+    required String organizationId,
+    required double amount,
+    required String currency,
+    required String referenceType,
+    required String referenceId,
+    String? note,
+  }) async {
+    final org = await getOrganization(organizationId);
+    if (org == null || !org.accountingModeEnabled || org.financeMode != 'accounting') {
+      return;
+    }
+    await ensureDefaultChartAccounts(organizationId);
+    await createJournalEntry(
+      organizationId: organizationId,
+      date: DateTime.now(),
+      debitAccountId: _acctId(organizationId, 'cash'),
+      creditAccountId: _acctId(organizationId, 'revenue'),
+      amount: amount,
+      currency: currency,
+      referenceType: referenceType,
+      referenceId: referenceId,
+      note: note,
+    );
+  }
+
+  /// Упрощённый P&L по проводкам (доход = кредит Revenue, расход = дебет Expense).
+  Future<({double revenue, double expense, double net})> getAccountingPnL(
+    String organizationId, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    await ensureDefaultChartAccounts(organizationId);
+    final accounts = await getChartAccounts(organizationId);
+    BHChartAccount? rev;
+    BHChartAccount? exp;
+    for (final a in accounts) {
+      if (a.kind == BHChartAccountKind.revenue) {
+        rev = a;
+      }
+      if (a.kind == BHChartAccountKind.expense) {
+        exp = a;
+      }
+    }
+    if (rev == null || exp == null) {
+      return (revenue: 0.0, expense: 0.0, net: 0.0);
+    }
+    final journals = await getJournalEntries(organizationId, limit: 2000);
+    final start = from ?? DateTime(2000);
+    final end = to ?? DateTime(2100);
+    var revenue = 0.0;
+    var expense = 0.0;
+    for (final j in journals) {
+      if (j.date.isBefore(start) || j.date.isAfter(end)) {
+        continue;
+      }
+      if (j.creditAccountId == rev.id) {
+        revenue += j.amount;
+      }
+      if (j.debitAccountId == exp.id) {
+        expense += j.amount;
+      }
+    }
+    return (revenue: revenue, expense: expense, net: revenue - expense);
+  }
+
+  /// Упрощённый баланс по остаткам счетов после проводок.
+  Future<Map<String, double>> getAccountingBalanceSheet(String organizationId) async {
+    await ensureDefaultChartAccounts(organizationId);
+    final accounts = await getChartAccounts(organizationId);
+    final journals = await getJournalEntries(organizationId, limit: 4000);
+    final bal = <String, double>{};
+    for (final a in accounts) {
+      bal[a.id] = 0;
+    }
+    for (final j in journals) {
+      bal[j.debitAccountId] = (bal[j.debitAccountId] ?? 0) + j.amount;
+      bal[j.creditAccountId] = (bal[j.creditAccountId] ?? 0) - j.amount;
+    }
+    double pick(BHChartAccountKind k) {
+      double s = 0;
+      for (final a in accounts) {
+        if (a.kind == k) {
+          s += bal[a.id] ?? 0;
+        }
+      }
+      return s;
+    }
+
+    return {
+      'cash': pick(BHChartAccountKind.cash),
+      'ar': pick(BHChartAccountKind.ar),
+      'ap': pick(BHChartAccountKind.ap),
+      'revenue': pick(BHChartAccountKind.revenue),
+      'expense': pick(BHChartAccountKind.expense),
+    };
   }
 
   // ── CRM: Activities ───────────────────────────────────────────

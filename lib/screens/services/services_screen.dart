@@ -31,7 +31,7 @@ class ServicesScreen extends StatelessWidget {
           const SizedBox(height: AppConstants.spacingLG),
           _buildServiceTileWithLogo(
             context,
-            logo: const OdoBusinessHubLogo(size: 40),
+            logo: const OdoBusinessHubLogo(size: 44),
             title: 'Business Hub',
             subtitle:
                 'Управление бизнесом: операции, BHS, аналитика, контрагенты.',
@@ -41,7 +41,7 @@ class ServicesScreen extends StatelessWidget {
           ),
           _buildServiceTileWithLogo(
             context,
-            logo: const OdoVacancyLogo(size: 40),
+            logo: const OdoVacancyLogo(size: 44),
             title: 'ODO Vacancy',
             subtitle:
                 'Вакансии и предложения работы для мастеров и специалистов.',
@@ -101,14 +101,18 @@ class ServicesScreen extends StatelessWidget {
         vertical: AppConstants.spacingSM,
       ),
       child: ListTile(
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppConstants.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 52,
+            height: 52,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.surfaceContainerHigh
+                : Colors.grey.shade100,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(4),
+            child: logo,
           ),
-          child: Center(child: logo),
         ),
         title: Text(title),
         subtitle: Text(

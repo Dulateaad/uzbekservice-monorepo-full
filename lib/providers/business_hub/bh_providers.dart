@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../models/business_hub/business_vertical.dart';
 import '../../models/business_hub/organization.dart';
 import '../../models/business_hub/operation.dart';
 import '../../models/business_hub/counterparty.dart';
@@ -32,6 +33,12 @@ final bhOrganizationProvider =
   return BHOrganizationNotifier(ref.watch(bhFirestoreServiceProvider));
 });
 
+/// Текущий профиль вертикали (термины под тип бизнеса).
+final bhBusinessVerticalSpecProvider = Provider<BusinessVerticalSpec>((ref) {
+  final org = ref.watch(bhOrganizationProvider).valueOrNull;
+  return BusinessVerticalSpec.byId(org?.businessVerticalId);
+});
+
 class BHOrganizationNotifier extends StateNotifier<AsyncValue<BHOrganization?>> {
   final BHFirestoreService _service;
 
@@ -51,6 +58,7 @@ class BHOrganizationNotifier extends StateNotifier<AsyncValue<BHOrganization?>> 
     required String ownerId,
     required String name,
     required String industry,
+    String businessVerticalId = BusinessVerticalIds.services,
     String? inn,
     String? legalForm,
     int employeeCount = 1,
@@ -61,6 +69,7 @@ class BHOrganizationNotifier extends StateNotifier<AsyncValue<BHOrganization?>> 
       ownerId: ownerId,
       name: name,
       industry: industry,
+      businessVerticalId: businessVerticalId,
       inn: inn,
       legalForm: legalForm,
       employeeCount: employeeCount,
@@ -855,4 +864,24 @@ final bhCrmAnalyticsProvider = FutureProvider.autoDispose.family<Map<String, dyn
   final crm = ref.watch(bhCrmServiceProvider);
   await crm.ensureDefaultPipelines(orgId);
   return crm.getCrmAnalytics(orgId);
+});
+
+// ── Ядро ТЗ: «Сегодня» и сводка финансов (Business Mode) ─────────
+final bhCoreTodayProvider =
+    FutureProvider.autoDispose.family<({int pipelineDeals, int openTasks, int duePayments}), String>((ref, orgId) async {
+  final svc = ref.watch(bhFirestoreServiceProvider);
+  return svc.getCoreTodaySnapshot(orgId);
+});
+
+final bhFinanceSummaryProvider =
+    FutureProvider.autoDispose.family<({double balance, double receivables}), String>((ref, orgId) async {
+  final svc = ref.watch(bhFirestoreServiceProvider);
+  return svc.getFinanceSummary(orgId);
+});
+
+final bhExtendedFinanceProvider =
+    FutureProvider.autoDispose.family<({double balance, double receivables, double payables}), String>(
+        (ref, orgId) async {
+  final svc = ref.watch(bhFirestoreServiceProvider);
+  return svc.getExtendedFinanceSummary(orgId);
 });

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 enum BHMemberRole {
   owner,
   admin,
+  manager,
   accountant,
   viewer,
 }
@@ -14,6 +15,8 @@ extension BHMemberRoleX on BHMemberRole {
         return 'Владелец';
       case BHMemberRole.admin:
         return 'Администратор';
+      case BHMemberRole.manager:
+        return 'Менеджер';
       case BHMemberRole.accountant:
         return 'Бухгалтер';
       case BHMemberRole.viewer:
@@ -24,7 +27,10 @@ extension BHMemberRoleX on BHMemberRole {
   String get firestoreValue => name;
 
   bool get canEditOperations =>
-      this == BHMemberRole.owner || this == BHMemberRole.admin || this == BHMemberRole.accountant;
+      this == BHMemberRole.owner ||
+      this == BHMemberRole.admin ||
+      this == BHMemberRole.manager ||
+      this == BHMemberRole.accountant;
 
   bool get canManageMembers =>
       this == BHMemberRole.owner || this == BHMemberRole.admin;
@@ -32,8 +38,15 @@ extension BHMemberRoleX on BHMemberRole {
   bool get canViewReports =>
       this == BHMemberRole.owner ||
       this == BHMemberRole.admin ||
+      this == BHMemberRole.manager ||
       this == BHMemberRole.accountant ||
       this == BHMemberRole.viewer;
+
+  /// Режим Accounting (счета, проводки): без менеджера по ТЗ.
+  bool get canAccessAccounting =>
+      this == BHMemberRole.owner ||
+      this == BHMemberRole.admin ||
+      this == BHMemberRole.accountant;
 }
 
 class BHOrganizationMember {

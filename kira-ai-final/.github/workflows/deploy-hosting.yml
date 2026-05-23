@@ -1,4 +1,5 @@
-# Автодеплой Firebase Hosting при push в main (ветку при необходимости поменяйте ниже).
+# Автодеплой: классический Hosting (web.app) + rollout App Hosting (*.hosted.app).
+# Backend ID смотрите в Firebase Console → App Hosting (в URL вида …/backends/BACKEND_ID).
 name: Deploy Firebase Hosting
 
 on:
@@ -27,6 +28,9 @@ jobs:
         run: npm ci
 
       - name: Build static site
+        env:
+          # Встраивается в клиент — ограничьте ключ по HTTP referrer в Google AI Studio.
+          NEXT_PUBLIC_GOOGLE_GENAI_API_KEY: ${{ secrets.GOOGLE_GENAI_API_KEY }}
         run: npm run build
 
       - name: Authenticate to Google Cloud
@@ -39,3 +43,8 @@ jobs:
 
       - name: Deploy Hosting
         run: firebase deploy --only hosting --project studio-4612461108-2107c --non-interactive
+
+      # Сборка и выкладка на hosted.app идут в Cloud Build из репозитория, привязанного к backend в консоли.
+      # Сервис-аккаунту из FIREBASE_SERVICE_ACCOUNT нужны права на App Hosting (например роли вокруг apphosting / firebaseapphosting).
+      - name: App Hosting rollout (hosted.app)
+        run: firebase apphosting:rollouts:create kiraai --project studio-4612461108-2107c --git-commit ${{ github.sha }} --force --non-interactive

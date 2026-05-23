@@ -9,7 +9,7 @@ import { Loader2, Camera, Sparkles, Trophy, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { runGenerateTrendVideoAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
-import { FirebaseClientProvider, useFirebase } from "@/firebase";
+import { useFirebase } from "@/firebase";
 import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import type { UserProfile } from "@/lib/types";
 import { SubscriptionDialog } from "@/components/SubscriptionDialog";
@@ -198,9 +198,5 @@ function TrendsContent() {
 }
 
 export default function TrendsPage() {
-    return (
-        <FirebaseClientProvider>
-            <TrendsContent />
-        </FirebaseClientProvider>
-    );
+    return <TrendsContent />;
 }

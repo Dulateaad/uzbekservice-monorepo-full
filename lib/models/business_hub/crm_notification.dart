@@ -7,6 +7,9 @@ enum BHCrmNotificationType {
   dealWon,
   taskAssigned,
   staleDeal,
+  paymentDueTomorrow,
+  paymentOverdue,
+  newCrmTask,
 }
 
 extension BHCrmNotificationTypeX on BHCrmNotificationType {
@@ -22,6 +25,8 @@ class BHCrmNotification {
   final String body;
   final String? dealId;
   final String? leadId;
+  final String? workId;
+  final String? installmentId;
   final bool read;
   final DateTime createdAt;
 
@@ -34,6 +39,8 @@ class BHCrmNotification {
     required this.body,
     this.dealId,
     this.leadId,
+    this.workId,
+    this.installmentId,
     this.read = false,
     required this.createdAt,
   });
@@ -47,6 +54,8 @@ class BHCrmNotification {
         'body': body,
         'dealId': dealId,
         'leadId': leadId,
+        'workId': workId,
+        'installmentId': installmentId,
         'read': read,
         'createdAt': Timestamp.fromDate(createdAt),
       };
@@ -63,6 +72,8 @@ class BHCrmNotification {
         body: map['body'] ?? '',
         dealId: map['dealId'],
         leadId: map['leadId'],
+        workId: map['workId'],
+        installmentId: map['installmentId'],
         read: map['read'] == true,
         createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
@@ -76,6 +87,8 @@ class BHCrmNotification {
         body: body,
         dealId: dealId,
         leadId: leadId,
+        workId: workId,
+        installmentId: installmentId,
         read: read ?? this.read,
         createdAt: createdAt,
       );

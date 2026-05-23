@@ -222,7 +222,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get onlyCompaniesCanCreate =>
-      'Faqat kompaniyalar vakansiya yarata oladi';
+      'Vakansiyani kompaniyalar, mutaxassislar yoki Business Hub dagi kompaniya egasi joylashtira oladi (Business Hub bo‘limida kompaniya yarating)';
 
   @override
   String get vacancyCreated => 'Vakansiya yaratildi!';

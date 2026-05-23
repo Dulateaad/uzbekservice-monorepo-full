@@ -523,7 +523,7 @@ abstract class AppLocalizations {
   /// No description provided for @onlyCompaniesCanCreate.
   ///
   /// In ru, this message translates to:
-  /// **'Только компании могут создавать вакансии'**
+  /// **'Размещать вакансии могут компании, специалисты и владельцы компании в Business Hub (создайте компанию в разделе Business Hub)'**
   String get onlyCompaniesCanCreate;
 
   /// No description provided for @vacancyCreated.

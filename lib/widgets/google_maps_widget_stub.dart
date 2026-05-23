@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:latlong2/latlong.dart';
 
-/// Класс для маркеров на карте
+import 'free_map_widget.dart';
+
+/// Маркер для [GoogleMapsWidget] (совместимость со старым API).
 class MapMarker {
   final double lat;
   final double lng;
@@ -16,8 +18,8 @@ class MapMarker {
   });
 }
 
-/// Native реализация Google Maps для iOS/Android
-class GoogleMapsWidget extends StatefulWidget {
+/// Карта выбора точки / просмотра на бесплатных тайлах (OSM / CARTO).
+class GoogleMapsWidget extends StatelessWidget {
   final double lat;
   final double lng;
   final int zoom;
@@ -40,56 +42,10 @@ class GoogleMapsWidget extends StatefulWidget {
   });
 
   @override
-  State<GoogleMapsWidget> createState() => _GoogleMapsWidgetState();
-}
-
-class _GoogleMapsWidgetState extends State<GoogleMapsWidget> {
-  gmaps.GoogleMapController? _controller;
-  Set<gmaps.Marker> _markers = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _buildMarkers();
-  }
-
-  void _buildMarkers() {
-    final markers = <gmaps.Marker>{};
-    
-    if (widget.showCurrentLocation) {
-      markers.add(
-        gmaps.Marker(
-          markerId: const gmaps.MarkerId('current_location'),
-          position: gmaps.LatLng(widget.lat, widget.lng),
-          infoWindow: const gmaps.InfoWindow(title: 'Мое местоположение'),
-          icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(gmaps.BitmapDescriptor.hueBlue),
-        ),
-      );
-    }
-    
-    if (widget.markers != null) {
-      for (int i = 0; i < widget.markers!.length; i++) {
-        final m = widget.markers![i];
-        markers.add(
-          gmaps.Marker(
-            markerId: gmaps.MarkerId('marker_$i'),
-            position: gmaps.LatLng(m.lat, m.lng),
-            infoWindow: gmaps.InfoWindow(title: m.title ?? ''),
-          ),
-        );
-      }
-    }
-    
-    setState(() {
-      _markers = markers;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Container(
-      height: widget.height,
-      width: widget.width,
+      height: height,
+      width: width,
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -103,32 +59,29 @@ class _GoogleMapsWidgetState extends State<GoogleMapsWidget> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: gmaps.GoogleMap(
-          initialCameraPosition: gmaps.CameraPosition(
-            target: gmaps.LatLng(widget.lat, widget.lng),
-            zoom: widget.zoom.toDouble(),
-          ),
-          markers: _markers,
-          myLocationEnabled: widget.showCurrentLocation,
-          myLocationButtonEnabled: widget.showCurrentLocation,
-          zoomControlsEnabled: true,
-          onMapCreated: (controller) {
-            _controller = controller;
-          },
-          onTap: widget.onLocationChanged != null 
-              ? (position) {
-                  widget.onLocationChanged!(position.latitude, position.longitude);
-                }
-              : null,
+        child: FreeMapWidget(
+          lat: lat,
+          lng: lng,
+          zoom: zoom,
+          height: height,
+          width: width,
+          markers: markers
+              ?.map((m) => <String, dynamic>{
+                    'lat': m.lat,
+                    'lng': m.lng,
+                    'title': m.title,
+                  })
+              .toList(),
+          showUserMarker: showCurrentLocation,
+          onMapTap: onLocationChanged == null
+              ? null
+              : (LatLng ll) {
+                  onLocationChanged!(ll.latitude, ll.longitude);
+                },
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
   }
 }
 
@@ -180,7 +133,6 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
           ),
           const SizedBox(height: 12),
         ],
-        
         Container(
           height: 300,
           decoration: BoxDecoration(
@@ -201,9 +153,7 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
             },
           ),
         ),
-        
         const SizedBox(height: 16),
-        
         ElevatedButton(
           onPressed: () {
             widget.onLocationSelected(_selectedLat, _selectedLng);
@@ -220,7 +170,6 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
             'Выбрать это местоположение',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -229,4 +178,3 @@ class _LocationPickerWidgetState extends State<LocationPickerWidget> {
     );
   }
 }
-

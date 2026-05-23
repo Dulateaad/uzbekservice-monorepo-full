@@ -12,6 +12,14 @@ class BHOrganization {
   final String? address;
   final String? phone;
   final String? email;
+  /// `business` (по умолчанию) или `accounting` (расширенный режим из ТЗ).
+  final String financeMode;
+  /// Включён ли блок Accounting (проводки, счета).
+  final bool accountingModeEnabled;
+  /// Завершён ли мастер онбординга Business Hub.
+  final bool bhOnboardingComplete;
+  /// Тип бизнеса для терминов и подсказок в интерфейсе (`BusinessVerticalIds`).
+  final String businessVerticalId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,6 +35,10 @@ class BHOrganization {
     this.address,
     this.phone,
     this.email,
+    this.financeMode = 'business',
+    this.accountingModeEnabled = false,
+    this.bhOnboardingComplete = false,
+    this.businessVerticalId = 'services',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -44,6 +56,10 @@ class BHOrganization {
       'address': address,
       'phone': phone,
       'email': email,
+      'financeMode': financeMode,
+      'accountingModeEnabled': accountingModeEnabled,
+      'bhOnboardingComplete': bhOnboardingComplete,
+      'businessVerticalId': businessVerticalId,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -62,6 +78,10 @@ class BHOrganization {
       address: map['address'],
       phone: map['phone'],
       email: map['email'],
+      financeMode: map['financeMode'] as String? ?? 'business',
+      accountingModeEnabled: map['accountingModeEnabled'] == true,
+      bhOnboardingComplete: map['bhOnboardingComplete'] == true,
+      businessVerticalId: map['businessVerticalId'] as String? ?? 'services',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -79,6 +99,10 @@ class BHOrganization {
     String? address,
     String? phone,
     String? email,
+    String? financeMode,
+    bool? accountingModeEnabled,
+    bool? bhOnboardingComplete,
+    String? businessVerticalId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -94,6 +118,10 @@ class BHOrganization {
       address: address ?? this.address,
       phone: phone ?? this.phone,
       email: email ?? this.email,
+      financeMode: financeMode ?? this.financeMode,
+      accountingModeEnabled: accountingModeEnabled ?? this.accountingModeEnabled,
+      bhOnboardingComplete: bhOnboardingComplete ?? this.bhOnboardingComplete,
+      businessVerticalId: businessVerticalId ?? this.businessVerticalId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

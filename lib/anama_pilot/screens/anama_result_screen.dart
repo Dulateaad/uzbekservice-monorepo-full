@@ -129,8 +129,8 @@ class AnamaResultScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 32),
               OutlinedButton(
-                onPressed: () => context.go('/pilot'),
-                child: const Text('На главную пилота'),
+                onPressed: () => context.go('/'),
+                child: const Text('На главную'),
               ),
             ],
           );

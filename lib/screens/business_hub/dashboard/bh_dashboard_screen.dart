@@ -35,6 +35,11 @@ class _BHDashboardScreenState extends ConsumerState<BHDashboardScreen> {
       ref.read(bhHealthScoreProvider.notifier).load(org.id);
       ref.read(bhDashboardStatsProvider.notifier).load(org.id);
       ref.read(bhOperationsProvider.notifier).load(org.id);
+      ref.invalidate(bhCoreTodayProvider(org.id));
+      ref.invalidate(bhExtendedFinanceProvider(org.id));
+      try {
+        await ref.read(bhCrmServiceProvider).syncInstallmentPaymentNotifications(org.id);
+      } catch (_) {}
     }
   }
 
@@ -53,6 +58,10 @@ class _BHDashboardScreenState extends ConsumerState<BHDashboardScreen> {
         if (org == null) {
           return _buildNoOrganization(context);
         }
+
+        final todayAsync = ref.watch(bhCoreTodayProvider(org.id));
+        final finAsync = ref.watch(bhExtendedFinanceProvider(org.id));
+        final spec = ref.watch(bhBusinessVerticalSpecProvider);
 
         return RefreshIndicator(
           onRefresh: _loadData,
@@ -75,12 +84,31 @@ class _BHDashboardScreenState extends ConsumerState<BHDashboardScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          org.industry,
+                          spec.hubSubtitle,
                           style: TextStyle(
                             fontSize: 14,
                             color: AppConstants.textSecondary,
+                            height: 1.3,
                           ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          spec.pipelineHint,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppConstants.textSecondary.withValues(alpha: 0.85),
+                          ),
+                        ),
+                        if (org.industry.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Сфера: ${org.industry}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppConstants.textSecondary.withValues(alpha: 0.75),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -88,281 +116,403 @@ class _BHDashboardScreenState extends ConsumerState<BHDashboardScreen> {
                     onPressed: () async {
                       await ref.read(bhHealthScoreProvider.notifier).recalculate(org.id);
                       ref.read(bhDashboardStatsProvider.notifier).load(org.id);
+                      ref.invalidate(bhCoreTodayProvider(org.id));
+                      ref.invalidate(bhExtendedFinanceProvider(org.id));
                     },
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Обновить BHS',
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // BHS Gauge
-              Center(
-                child: bhsAsync.when(
-                  loading: () => const SizedBox(
-                    height: 180,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                  error: (_, __) => const Text('Ошибка загрузки BHS'),
-                  data: (bhs) => BHHealthGauge(bhs: bhs, size: 180),
+              Text(
+                'Сегодня',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppConstants.textSecondary,
                 ),
               ),
               const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  'Business Health Score',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppConstants.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+              todayAsync.when(
+                loading: () => const SizedBox(height: 4),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (t) => Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _TodayChip(
+                      icon: Icons.handshake_outlined,
+                      label: 'Воронка',
+                      value: '${t.pipelineDeals}',
+                    ),
+                    _TodayChip(
+                      icon: Icons.task_alt_outlined,
+                      label: 'Задачи',
+                      value: '${t.openTasks}',
+                    ),
+                    _TodayChip(
+                      icon: Icons.payments_outlined,
+                      label: 'К оплате',
+                      value: '${t.duePayments}',
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // AI Reasons & Recommendations
-              bhsAsync.whenData((bhs) {
-                if (bhs == null) return const SizedBox.shrink();
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F9FF),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFBAE6FD)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.auto_awesome, color: AppConstants.primaryColor, size: 18),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'AI Аналитика',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      for (final reason in bhs.topReasons)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-                              Expanded(child: Text(reason, style: const TextStyle(fontSize: 13))),
-                            ],
+              const SizedBox(height: 12),
+              finAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (f) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Баланс ${formatter.format(f.balance)} UZS',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                           ),
                         ),
-                      if (bhs.recommendations.isNotEmpty) ...[
-                        const Divider(height: 20),
-                        for (final rec in bhs.recommendations)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        Expanded(
+                          child: Text(
+                            'Дебиторка ${formatter.format(f.receivables)} UZS',
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: AppConstants.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Кредиторка ${formatter.format(f.payables)} UZS',
+                      style: TextStyle(fontSize: 12, color: AppConstants.textSecondary),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () => context.push('/home/services/business-hub/finance'),
+                        child: const Text('Финансы подробнее'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.person_add_alt_1_outlined,
+                      label: 'Клиент',
+                      color: AppConstants.primaryColor,
+                      onTap: () => context.push('/home/services/business-hub/crm?tab=leads'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.account_tree_outlined,
+                      label: 'Сделки',
+                      color: const Color(0xFF8B5CF6),
+                      onTap: () => context.push('/home/services/business-hub/crm?tab=deals'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.inventory_2_outlined,
+                      label: 'Заказы',
+                      color: const Color(0xFF14B8A6),
+                      onTap: () => context.push('/home/services/business-hub/works'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              ExpansionTile(
+                initiallyExpanded: false,
+                title: const Text(
+                  'Ещё',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                subtitle: Text(
+                  'Показатели, операции, сканер',
+                  style: TextStyle(fontSize: 12, color: AppConstants.textSecondary),
+                ),
+                children: [
+                  Center(
+                    child: bhsAsync.when(
+                      loading: () => const SizedBox(
+                        height: 180,
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (_, __) => const Text('Ошибка загрузки BHS'),
+                      data: (bhs) => BHHealthGauge(bhs: bhs, size: 180),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'Business Health Score',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppConstants.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  bhsAsync.whenData((bhs) {
+                    if (bhs == null) return const SizedBox.shrink();
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F9FF),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFBAE6FD)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.auto_awesome, color: AppConstants.primaryColor, size: 18),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'AI Аналитика',
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          for (final reason in bhs.topReasons)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Expanded(child: Text(reason, style: const TextStyle(fontSize: 13))),
+                                ],
+                              ),
+                            ),
+                          if (bhs.recommendations.isNotEmpty) ...[
+                            const Divider(height: 20),
+                            for (final rec in bhs.recommendations)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('💡 ', style: TextStyle(fontSize: 13)),
+                                    Expanded(
+                                      child: Text(rec, style: const TextStyle(fontSize: 13)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }).valueOrNull ?? const SizedBox.shrink(),
+                  const SizedBox(height: 24),
+
+                  statsAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (stats) {
+                      final income = (stats['totalIncome'] as num?)?.toDouble() ?? 0;
+                      final expense = (stats['totalExpense'] as num?)?.toDouble() ?? 0;
+                      final profit = (stats['profit'] as num?)?.toDouble() ?? 0;
+                      final totalOps = stats['totalOperations'] ?? 0;
+
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: BHStatCard(
+                                  title: 'Доходы',
+                                  value: '${formatter.format(income)} UZS',
+                                  icon: Icons.trending_up,
+                                  color: const Color(0xFF10B981),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: BHStatCard(
+                                  title: 'Расходы',
+                                  value: '${formatter.format(expense)} UZS',
+                                  icon: Icons.trending_down,
+                                  color: const Color(0xFFEF4444),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: BHStatCard(
+                                  title: 'Налоги (начисл.)',
+                                  value: '${formatter.format((stats['taxAccrued'] as num?)?.toDouble() ?? 0)} UZS',
+                                  icon: Icons.receipt_long,
+                                  color: const Color(0xFF6366F1),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: BHStatCard(
+                                  title: 'Налоги (уплач.)',
+                                  value: '${formatter.format((stats['taxPaid'] as num?)?.toDouble() ?? 0)} UZS',
+                                  icon: Icons.check_circle_outline,
+                                  color: const Color(0xFF10B981),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: BHStatCard(
+                                  title: 'Прибыль',
+                                  value: '${formatter.format(profit)} UZS',
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  color: profit >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: BHStatCard(
+                                  title: 'Операций',
+                                  value: '$totalOps',
+                                  icon: Icons.receipt_long_outlined,
+                                  color: AppConstants.primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (((stats['pipelineValue'] as num?)?.toDouble() ?? 0) > 0 ||
+                              (stats['wonDealsCount'] ?? 0) > 0 ||
+                              (stats['leadsCount'] ?? 0) > 0) ...[
+                            const SizedBox(height: 12),
+                            Row(
                               children: [
-                                const Text('💡 ', style: TextStyle(fontSize: 13)),
                                 Expanded(
-                                  child: Text(rec, style: const TextStyle(fontSize: 13)),
+                                  child: BHStatCard(
+                                    title: 'Воронка',
+                                    value: '${formatter.format((stats['pipelineValue'] as num?)?.toDouble() ?? 0)} UZS',
+                                    icon: Icons.account_tree_outlined,
+                                    color: const Color(0xFF8B5CF6),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: BHStatCard(
+                                    title: 'Выиграно сделок',
+                                    value: '${stats['wonDealsCount'] ?? 0}',
+                                    icon: Icons.emoji_events_outlined,
+                                    color: const Color(0xFFF59E0B),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                      ],
-                    ],
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: BHStatCard(
+                                    title: 'Лиды (30 дн.)',
+                                    value: '${stats['leadsCount'] ?? 0}',
+                                    icon: Icons.person_add_outlined,
+                                    color: const Color(0xFF06B6D4),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: BHStatCard(
+                                    title: 'Сделок в воронке',
+                                    value: '${stats['dealsInFunnel'] ?? 0}',
+                                    icon: Icons.filter_list,
+                                    color: const Color(0xFF14B8A6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      );
+                    },
                   ),
-                );
-              }).valueOrNull ?? const SizedBox.shrink(),
-              const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-              // Stat cards
-              statsAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (stats) {
-                  final income = (stats['totalIncome'] as num?)?.toDouble() ?? 0;
-                  final expense = (stats['totalExpense'] as num?)?.toDouble() ?? 0;
-                  final profit = (stats['profit'] as num?)?.toDouble() ?? 0;
-                  final totalOps = stats['totalOperations'] ?? 0;
-
-                  return Column(
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: BHStatCard(
-                              title: 'Доходы',
-                              value: '${formatter.format(income)} UZS',
-                              icon: Icons.trending_up,
-                              color: const Color(0xFF10B981),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: BHStatCard(
-                              title: 'Расходы',
-                              value: '${formatter.format(expense)} UZS',
-                              icon: Icons.trending_down,
-                              color: const Color(0xFFEF4444),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: BHStatCard(
-                              title: 'Налоги (начисл.)',
-                              value: '${formatter.format((stats['taxAccrued'] as num?)?.toDouble() ?? 0)} UZS',
-                              icon: Icons.receipt_long,
-                              color: const Color(0xFF6366F1),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: BHStatCard(
-                              title: 'Налоги (уплач.)',
-                              value: '${formatter.format((stats['taxPaid'] as num?)?.toDouble() ?? 0)} UZS',
-                              icon: Icons.check_circle_outline,
-                              color: const Color(0xFF10B981),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: BHStatCard(
-                              title: 'Прибыль',
-                              value: '${formatter.format(profit)} UZS',
-                              icon: Icons.account_balance_wallet_outlined,
-                              color: profit >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: BHStatCard(
-                              title: 'Операций',
-                              value: '$totalOps',
-                              icon: Icons.receipt_long_outlined,
-                              color: AppConstants.primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      // CRM блок
-                      if (((stats['pipelineValue'] as num?)?.toDouble() ?? 0) > 0 ||
-                          (stats['wonDealsCount'] ?? 0) > 0 ||
-                          (stats['leadsCount'] ?? 0) > 0) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: BHStatCard(
-                                title: 'Воронка',
-                                value: '${formatter.format((stats['pipelineValue'] as num?)?.toDouble() ?? 0)} UZS',
-                                icon: Icons.account_tree_outlined,
-                                color: const Color(0xFF8B5CF6),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: BHStatCard(
-                                title: 'Выиграно сделок',
-                                value: '${stats['wonDealsCount'] ?? 0}',
-                                icon: Icons.emoji_events_outlined,
-                                color: const Color(0xFFF59E0B),
-                              ),
-                            ),
-                          ],
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.add_circle_outline,
+                          label: 'Операция',
+                          color: AppConstants.primaryColor,
+                          onTap: () => context.push('/home/services/business-hub/operation/new'),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: BHStatCard(
-                                title: 'Лиды (30 дн.)',
-                                value: '${stats['leadsCount'] ?? 0}',
-                                icon: Icons.person_add_outlined,
-                                color: const Color(0xFF06B6D4),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: BHStatCard(
-                                title: 'Сделок в воронке',
-                                value: '${stats['dealsInFunnel'] ?? 0}',
-                                icon: Icons.filter_list,
-                                color: const Color(0xFF14B8A6),
-                              ),
-                            ),
-                          ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.document_scanner_outlined,
+                          label: 'Сканер',
+                          color: const Color(0xFF14B8A6),
+                          onTap: () => context.push('/home/services/business-hub/ocr-scan'),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.people_outline,
+                          label: 'Контрагенты',
+                          color: const Color(0xFF8B5CF6),
+                          onTap: () => context.push('/home/services/business-hub/counterparties'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.bar_chart,
+                          label: 'Отчёты',
+                          color: const Color(0xFFF59E0B),
+                          onTap: () => context.push('/home/services/business-hub/reports'),
+                        ),
+                      ),
                     ],
-                  );
-                },
-              ),
-              const SizedBox(height: 28),
-
-              // Quick actions
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickAction(
-                      icon: Icons.add_circle_outline,
-                      label: 'Операция',
-                      color: AppConstants.primaryColor,
-                      onTap: () => context.push('/home/services/business-hub/operation/new'),
-                    ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickAction(
-                      icon: Icons.document_scanner_outlined,
-                      label: 'Сканер',
-                      color: const Color(0xFF14B8A6),
-                      onTap: () => context.push('/home/services/business-hub/ocr-scan'),
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.hub_outlined,
+                          label: 'CRM целиком',
+                          color: const Color(0xFF6366F1),
+                          onTap: () => context.push('/home/services/business-hub/crm'),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickAction(
-                      icon: Icons.people_outline,
-                      label: 'Контрагенты',
-                      color: const Color(0xFF8B5CF6),
-                      onTap: () => context.push('/home/services/business-hub/counterparties'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickAction(
-                      icon: Icons.bar_chart,
-                      label: 'Отчёты',
-                      color: const Color(0xFFF59E0B),
-                      onTap: () => context.push('/home/services/business-hub/reports'),
-                    ),
-                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickAction(
-                      icon: Icons.people_alt_outlined,
-                      label: 'CRM',
-                      color: const Color(0xFF8B5CF6),
-                      onTap: () => context.push('/home/services/business-hub/crm'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
               // Recent operations
               Row(
@@ -470,6 +620,44 @@ class _BHDashboardScreenState extends ConsumerState<BHDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TodayChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _TodayChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: AppConstants.primaryColor),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: AppConstants.textSecondary)),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            ],
+          ),
+        ],
       ),
     );
   }

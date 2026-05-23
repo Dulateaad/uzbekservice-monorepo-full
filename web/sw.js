@@ -21,8 +21,8 @@ firebase.initializeApp(firebaseConfig);
 // Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
-const CACHE_NAME = 'odo-uz-v1';
-const RUNTIME_CACHE = 'odo-uz-runtime-v1';
+const CACHE_NAME = 'odo-uz-v3';
+const RUNTIME_CACHE = 'odo-uz-runtime-v3';
 
 // Ресурсы для кэширования при установке
 const PRECACHE_URLS = [
@@ -77,32 +77,7 @@ self.addEventListener('fetch', (event) => {
     return; // Пропускаем, используем сеть
   }
   
-  // Для статических ресурсов используем Cache First
-  if (event.request.destination === 'image' || 
-      event.request.destination === 'script' ||
-      event.request.destination === 'style') {
-    event.respondWith(
-      caches.match(event.request)
-        .then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          return fetch(event.request).then((response) => {
-            // Кэшируем только успешные ответы
-            if (response.status === 200) {
-              const responseToCache = response.clone();
-              caches.open(RUNTIME_CACHE).then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            }
-            return response;
-          });
-        })
-    );
-    return;
-  }
-  
-  // Для HTML и других - Network First
+  // Все ресурсы -- Network First
   event.respondWith(
     fetch(event.request)
       .then((response) => {

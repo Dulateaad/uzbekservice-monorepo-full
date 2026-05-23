@@ -26,15 +26,7 @@ class _AnamaPilotMonitorScreenState extends State<AnamaPilotMonitorScreen> {
       _busy = true;
       _error = null;
     });
-    try {
-      if (FirebaseAuth.instance.currentUser == null) {
-        await FirebaseAuth.instance.signInAnonymously();
-      }
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    if (mounted) setState(() => _busy = false);
   }
 
   @override

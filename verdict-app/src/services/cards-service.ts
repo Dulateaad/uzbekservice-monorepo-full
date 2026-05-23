@@ -10,7 +10,10 @@ import {
   getDoc,
   setDoc,
   Timestamp,
+  runTransaction,
+  where,
 } from 'firebase/firestore';
+import type { DocumentReference } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { VerdictCard } from '@/types/card';
 import { validateCard } from '@/data/forbidden-content';
@@ -196,6 +199,100 @@ export interface VoteMetadata {
   city?: string;
 }
 
+/** Один документ на пару (userId, cardId) — без POST API, только Firestore */
+export function userVoteDocumentId(userId: string, cardId: string): string {
+  const u = String(userId).replace(/\//g, '_');
+  const c = String(cardId).replace(/\//g, '_');
+  return `uv_${u}__${c}`.slice(0, 1400);
+}
+
+function voteMetadataFields(metadata?: VoteMetadata | null): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
+  if (metadata?.gender) o.gender = metadata.gender;
+  if (metadata?.ageGroup) o.ageGroup = metadata.ageGroup;
+  if (metadata?.country) o.country = metadata.country;
+  if (metadata?.city) o.city = metadata.city;
+  return o;
+}
+
+/** Голос пользователя по карточке: сначала канонический doc id, иначе старый формат (случайный id) */
+export async function getUserVoteForCard(userId: string, cardId: string): Promise<'A' | 'B' | null> {
+  const canon = doc(db, VOTES_COLLECTION, userVoteDocumentId(userId, cardId));
+  const s = await getDoc(canon);
+  if (s.exists()) return (s.data().choice as 'A' | 'B') ?? null;
+  const q = query(
+    collection(db, VOTES_COLLECTION),
+    where('userId', '==', userId),
+    where('cardId', '==', cardId),
+    limit(15),
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  let best = snap.docs[0];
+  let bestT = best.data().updatedAt?.toMillis?.() ?? best.data().createdAt?.toMillis?.() ?? 0;
+  for (const d of snap.docs) {
+    const t = d.data().updatedAt?.toMillis?.() ?? d.data().createdAt?.toMillis?.() ?? 0;
+    if (t >= bestT) {
+      bestT = t;
+      best = d;
+    }
+  }
+  return (best.data().choice as 'A' | 'B') ?? null;
+}
+
+export async function hydrateCardsWithUserVotes(
+  userId: string | null | undefined,
+  cards: VerdictCard[],
+): Promise<VerdictCard[]> {
+  if (!userId || cards.length === 0) return cards;
+  const enriched = await Promise.all(
+    cards.map(async c => {
+      const v = await getUserVoteForCard(userId, c.id);
+      return { ...c, userVote: v };
+    }),
+  );
+  return enriched;
+}
+
+type LegacyVoteHint = {
+  prevChoice: 'A' | 'B' | null;
+  legacyRef: DocumentReference | null;
+};
+
+async function readLegacyVoteHint(userId: string, cardId: string): Promise<LegacyVoteHint> {
+  const canonId = userVoteDocumentId(userId, cardId);
+  const canonRef = doc(db, VOTES_COLLECTION, canonId);
+  const canonSnap = await getDoc(canonRef);
+  if (canonSnap.exists()) return { prevChoice: null, legacyRef: null };
+  const q = query(
+    collection(db, VOTES_COLLECTION),
+    where('userId', '==', userId),
+    where('cardId', '==', cardId),
+    limit(15),
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return { prevChoice: null, legacyRef: null };
+  let best = snap.docs[0];
+  let bestT = best.data().updatedAt?.toMillis?.() ?? best.data().createdAt?.toMillis?.() ?? 0;
+  for (const d of snap.docs) {
+    if (d.id === canonId) continue;
+    const t = d.data().updatedAt?.toMillis?.() ?? d.data().createdAt?.toMillis?.() ?? 0;
+    if (t >= bestT) {
+      bestT = t;
+      best = d;
+    }
+  }
+  if (best.id === canonId) return { prevChoice: null, legacyRef: null };
+  return {
+    prevChoice: (best.data().choice as 'A' | 'B') ?? null,
+    legacyRef: best.ref,
+  };
+}
+
+/**
+ * Один актуальный голос на карточку: upsert в verdict_votes + корректный increment/decrement по переголосованию.
+ * Без userId — только increment на карточке (как раньше).
+ */
 export async function voteCard(
   cardId: string,
   choice: 'A' | 'B',
@@ -203,26 +300,74 @@ export async function voteCard(
   metadata?: VoteMetadata | null
 ): Promise<void> {
   const cardRef = doc(db, CARDS_COLLECTION, cardId);
-  const batch = writeBatch(db);
 
-  batch.update(cardRef, choice === 'A' ? { votesA: increment(1) } : { votesB: increment(1) });
-
-  if (userId) {
-    const voteRef = doc(collection(db, VOTES_COLLECTION));
-    const voteData: Record<string, unknown> = {
-      cardId,
-      userId,
-      choice,
-      createdAt: Timestamp.now(),
-    };
-    if (metadata?.gender) voteData.gender = metadata.gender;
-    if (metadata?.ageGroup) voteData.ageGroup = metadata.ageGroup;
-    if (metadata?.country) voteData.country = metadata.country;
-    if (metadata?.city) voteData.city = metadata.city;
-    batch.set(voteRef, voteData);
+  if (!userId) {
+    const batch = writeBatch(db);
+    batch.update(cardRef, choice === 'A' ? { votesA: increment(1) } : { votesB: increment(1) });
+    await batch.commit();
+    return;
   }
 
-  await batch.commit();
+  const voteRef = doc(db, VOTES_COLLECTION, userVoteDocumentId(userId, cardId));
+  const legacyHint = await readLegacyVoteHint(userId, cardId);
+
+  await runTransaction(db, async tx => {
+    const [cardSnap, voteSnap] = await Promise.all([tx.get(cardRef), tx.get(voteRef)]);
+    if (!cardSnap.exists()) return;
+
+    let prev: 'A' | 'B' | null = voteSnap.exists() ? ((voteSnap.data().choice as 'A' | 'B') ?? null) : null;
+    const legacyRef =
+      !voteSnap.exists() && legacyHint.legacyRef ? legacyHint.legacyRef : null;
+    if (prev === null && legacyHint.prevChoice !== null && !voteSnap.exists()) {
+      prev = legacyHint.prevChoice;
+    }
+
+    if (prev === choice) {
+      if (legacyRef) {
+        tx.set(
+          voteRef,
+          {
+            userId,
+            cardId,
+            choice,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+            ...voteMetadataFields(metadata),
+          },
+          { merge: true },
+        );
+        tx.delete(legacyRef);
+      } else if (voteSnap.exists()) {
+        tx.set(voteRef, { updatedAt: Timestamp.now(), ...voteMetadataFields(metadata) }, { merge: true });
+      }
+      return;
+    }
+
+    if (prev === null) {
+      tx.update(cardRef, choice === 'A' ? { votesA: increment(1) } : { votesB: increment(1) });
+    } else {
+      const decKey = prev === 'A' ? 'votesA' : 'votesB';
+      const incKey = choice === 'A' ? 'votesA' : 'votesB';
+      tx.update(cardRef, {
+        [decKey]: increment(-1),
+        [incKey]: increment(1),
+      });
+    }
+
+    const now = Timestamp.now();
+    const base: Record<string, unknown> = {
+      userId,
+      cardId,
+      choice,
+      updatedAt: now,
+      ...voteMetadataFields(metadata),
+    };
+    if (!voteSnap.exists()) base.createdAt = now;
+    else base.createdAt = voteSnap.data().createdAt ?? now;
+    tx.set(voteRef, base, { merge: true });
+
+    if (legacyRef) tx.delete(legacyRef);
+  });
 }
 
 export interface CreateCardOptions {

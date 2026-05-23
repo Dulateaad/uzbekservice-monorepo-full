@@ -99,6 +99,7 @@ class _BHDealDetailScreenState extends ConsumerState<BHDealDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final deal = _effectiveDeal();
+    final spec = ref.watch(bhBusinessVerticalSpecProvider);
     final activitiesAsync = ref.watch(bhActivitiesProvider);
     final formatter = NumberFormat('#,###', 'ru');
     final dateFormat = DateFormat('dd.MM.yyyy');
@@ -356,7 +357,7 @@ class _BHDealDetailScreenState extends ConsumerState<BHDealDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        Text('Позиции сделки', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(spec.dealPositionsHeading, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                         const Spacer(),
                         IconButton(
                           icon: const Icon(Icons.add_circle_outline),
@@ -366,7 +367,7 @@ class _BHDealDetailScreenState extends ConsumerState<BHDealDetailScreen> {
                       ],
                     ),
                     if (_dealItems.isEmpty)
-                      Text('Нет позиций. Добавьте продукт из справочника.', style: TextStyle(fontSize: 12, color: AppConstants.textSecondary))
+                      Text(spec.emptyDealLinesHint, style: TextStyle(fontSize: 12, color: AppConstants.textSecondary))
                     else
                       ..._dealItems.map((i) {
                         return ListTile(
@@ -576,10 +577,11 @@ class _BHDealDetailScreenState extends ConsumerState<BHDealDetailScreen> {
 
   void _showAddDealLineSheet(BuildContext context, BHDeal deal) {
     final org = ref.read(bhOrganizationProvider).valueOrNull;
+    final spec = ref.read(bhBusinessVerticalSpecProvider);
     if (org == null) return;
     if (_crmProducts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Добавьте продукты: CRM → Ещё → Продукты')),
+        SnackBar(content: Text(spec.addCatalogFirstMessage)),
       );
       return;
     }
@@ -605,11 +607,11 @@ class _BHDealDetailScreenState extends ConsumerState<BHDealDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Позиция сделки', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                Text(spec.dealPositionSheetTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<BHCrmProduct>(
                   value: selected,
-                  decoration: const InputDecoration(labelText: 'Продукт', border: OutlineInputBorder()),
+                  decoration: InputDecoration(labelText: spec.crmProductFieldLabel, border: const OutlineInputBorder()),
                   items: _crmProducts
                       .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))
                       .toList(),

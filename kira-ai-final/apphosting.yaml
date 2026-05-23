@@ -4,6 +4,9 @@
 # Сборка в Cloud Build выставляет FIREBASE_APP_HOSTING — в next.config.ts
 # тогда включается output: 'standalone' (нужно адаптеру apphosting-nextjs).
 # Статический деплой на Hosting (GitHub Actions) этой переменной не задаёт → export в out/.
+#
+# Генерация фото в браузере: при сборке Next нужен NEXT_PUBLIC_GOOGLE_GENAI_API_KEY
+# (тот же ключ, что GOOGLE_GENAI_API_KEY), см. переменные окружения / secrets в консоли App Hosting.
 
 runConfig:
   # Increase this value if you'd like to automatically spin up

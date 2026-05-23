@@ -14,8 +14,6 @@ import 'theme/app_theme.dart';
 import 'services/push_notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'providers/notification_navigation_provider.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'services/google_maps_service.dart';
 import 'services/analytics_service.dart';
 import 'providers/locale_provider.dart';
 import 'l10n/app_localizations.dart';
@@ -39,11 +37,7 @@ void main() async {
   // Инициализируем push-уведомления
   await PushNotificationService.initialize();
   
-  // Предзагружаем Google Maps API для веб (для ускорения загрузки карты)
   if (kIsWeb) {
-    GoogleMapsService.initialize().catchError((e) {
-      print('⚠️ Предзагрузка Google Maps API: $e');
-    });
     initGeminiConfigForWeb();
   }
   

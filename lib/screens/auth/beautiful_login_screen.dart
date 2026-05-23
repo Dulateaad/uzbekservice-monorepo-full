@@ -5,6 +5,7 @@ import '../../constants/app_constants.dart';
 import '../../widgets/odo_logo.dart';
 import '../../providers/firestore_auth_provider.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/phone_input_normalize.dart';
 
 class BeautifulLoginScreen extends ConsumerStatefulWidget {
   final String? intentId; // ID выбранного intent
@@ -104,75 +105,14 @@ class _BeautifulLoginScreenState extends ConsumerState<BeautifulLoginScreen> {
     });
 
     try {
-      // Форматируем номер телефона с префиксом
-      String phoneNumber = _phoneController.text.trim();
-      
-      print('📱 Исходный номер: $phoneNumber');
-      
-      // Убираем все пробелы, дефисы, скобки
-      phoneNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-      
-      // Убираем любые дублирующиеся префиксы, которые пользователь мог ввести
-      // Так как префикс уже показывается визуально, пользователь не должен его вводить
-      if (phoneNumber.startsWith('+998')) {
-        phoneNumber = phoneNumber.substring(4);
-      } else if (phoneNumber.startsWith('998')) {
-        phoneNumber = phoneNumber.substring(3);
-      } else if (phoneNumber.startsWith('+7')) {
-        phoneNumber = phoneNumber.substring(2);
-      } else if (phoneNumber.startsWith('8') && phoneNumber.length == 11) {
-        // Российский/Казахстанский формат с 8
-        phoneNumber = phoneNumber.substring(1);
-      }
-      
-      // Убираем любые оставшиеся + в начале
-      phoneNumber = phoneNumber.replaceAll(RegExp(r'^\++'), '');
-      
-      // Оставляем только цифры
-      phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-      
-      // Добавляем префикс страны в зависимости от выбранной страны
-      if (_selectedCountryCode == 'UZ') {
-        // Узбекистан: +998XXXXXXXXX (9 цифр после +998)
-        if (phoneNumber.length != 9) {
-          throw Exception('Введите 9 цифр номера (например: 901234567). Вы ввели ${phoneNumber.length} цифр.');
-        }
-        phoneNumber = '+998$phoneNumber';
-      } else {
-        // Казахстан: +7XXXXXXXXXX (10 цифр после +7)
-        if (phoneNumber.length != 10) {
-          throw Exception('Введите 10 цифр номера (например: 7001234567). Вы ввели ${phoneNumber.length} цифр.');
-        }
-        phoneNumber = '+7$phoneNumber';
-      }
-      
-      // Финальная проверка формата
-      print('📱 Финальный номер: $phoneNumber (длина: ${phoneNumber.length})');
-      
-      // Проверяем корректность формата
-      if (phoneNumber.startsWith('+998')) {
-        // Узбекский номер должен быть: +998XXXXXXXXX (13 символов: +998 + 9 цифр)
-        if (phoneNumber.length != 13) {
-          throw Exception('Неверный формат узбекского номера. Ожидается: +998XXXXXXXXX');
-        }
-        // Проверяем, что после +998 идет 9 цифр
-        String digits = phoneNumber.substring(4); // Берем часть после +998
-        if (!RegExp(r'^\d{9}$').hasMatch(digits)) {
-          throw Exception('Узбекский номер должен содержать 9 цифр после +998');
-        }
-      } else if (phoneNumber.startsWith('+7')) {
-        // Казахстанский номер должен быть: +7XXXXXXXXXX (12 символов: +7 + 10 цифр)
-        if (phoneNumber.length != 12) {
-          throw Exception('Неверный формат казахстанского номера. Ожидается: +7XXXXXXXXXX');
-        }
-        String digits = phoneNumber.substring(2); // Берем часть после +7
-        if (!RegExp(r'^\d{10}$').hasMatch(digits)) {
-          throw Exception('Казахстанский номер должен содержать 10 цифр после +7');
-        }
-      } else {
-        throw Exception('Неверный формат номера. Используйте формат +998XXXXXXXXX или +7XXXXXXXXXX');
-      }
-      
+      // Единая нормализация: учитывает национальную часть, +998/+7, KZ 11 цифр с ведущей 7
+      final phoneNumber = PhoneInputNormalize.toE164(
+        raw: _phoneController.text.trim(),
+        countryCode: _selectedCountryCode,
+      );
+
+      print('📱 Финальный номер: $phoneNumber');
+
       // Отправляем SMS код (и для входа, и для регистрации)
       // userType определяется автоматически из intent/role
       await ref.read(firestoreAuthProvider.notifier).sendSmsCode(
@@ -677,39 +617,10 @@ class _BeautifulLoginScreenState extends ConsumerState<BeautifulLoginScreen> {
                                   ),
                                 ),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Введите номер телефона';
-                                }
-                                
-                                // Убираем пробелы и дефисы для проверки
-                                String cleanValue = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-                                
-                                // Проверяем длину в зависимости от страны
-                                if (_selectedCountryCode == 'UZ') {
-                                  // Узбекистан: минимум 9 цифр (без префикса +998)
-                                  if (cleanValue.startsWith('+998') || cleanValue.startsWith('998')) {
-                                    String numberOnly = cleanValue.replaceAll(RegExp(r'[^\d]'), '');
-                                    if (numberOnly.length < 12) { // 998 + 9 цифр
-                                      return 'Номер должен содержать 9 цифр';
-                                    }
-                                  } else if (cleanValue.length < 9) {
-                                    return 'Номер слишком короткий';
-                                  }
-                                } else {
-                                  // Казахстан: минимум 10 цифр (без префикса +7)
-                                  if (cleanValue.startsWith('+7') || cleanValue.startsWith('7')) {
-                                    String numberOnly = cleanValue.replaceAll(RegExp(r'[^\d]'), '');
-                                    if (numberOnly.length < 11) { // 7 + 10 цифр
-                                      return 'Номер должен содержать 10 цифр';
-                                    }
-                                  } else if (cleanValue.length < 10) {
-                                    return 'Номер слишком короткий';
-                                  }
-                                }
-                                
-                                return null;
-                              },
+                              validator: (value) => PhoneInputNormalize.validateNationalInput(
+                                value: value,
+                                countryCode: _selectedCountryCode,
+                              ),
                             ),
                           ),
                         ],

@@ -62,7 +62,7 @@ class AnamaPrivacyScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           FilledButton(
-            onPressed: () => context.go('/pilot'),
+            onPressed: () => context.go('/'),
             child: const Text('Понятно, назад'),
           ),
         ],

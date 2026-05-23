@@ -9,17 +9,17 @@ import type { VerdictCard } from '@/types/card';
 const generateId = () => Math.random().toString(36).slice(2, 11);
 
 export const STARTER_CARDS: Omit<VerdictCard, 'votesA' | 'votesB' | 'totalVotes' | 'createdAt'>[] = [
-  // Популярные
-  { id: generateId(), optionA: 'Месси', optionB: 'Роналду', category: 'popular' },
-  { id: generateId(), optionA: 'Мбаппе', optionB: 'Холанд', category: 'popular' },
-  { id: generateId(), optionA: 'Барселона', optionB: 'Реал Мадрид', category: 'popular' },
-  { id: generateId(), optionA: 'iPhone', optionB: 'Samsung', category: 'popular' },
-  { id: generateId(), optionA: 'Пицца', optionB: 'Суши', category: 'popular' },
-  { id: generateId(), optionA: 'Париж', optionB: 'Рим', category: 'popular' },
-  { id: generateId(), optionA: 'Брэд Питт', optionB: 'Леонардо ДиКаприо', category: 'popular' },
-  { id: generateId(), optionA: 'Marvel', optionB: 'DC', category: 'popular' },
-  { id: generateId(), optionA: 'PlayStation', optionB: 'Xbox', category: 'popular' },
-  { id: generateId(), optionA: 'Кофе', optionB: 'Чай', category: 'popular' },
+  // Популярные (tags для режима «Чемпион» по категориям)
+  { id: generateId(), optionA: 'Месси', optionB: 'Роналду', category: 'popular', tags: ['champion:football'] },
+  { id: generateId(), optionA: 'Мбаппе', optionB: 'Холанд', category: 'popular', tags: ['champion:football'] },
+  { id: generateId(), optionA: 'Барселона', optionB: 'Реал Мадрид', category: 'popular', tags: ['champion:football'] },
+  { id: generateId(), optionA: 'iPhone', optionB: 'Samsung', category: 'popular', tags: ['champion:phones'] },
+  { id: generateId(), optionA: 'Пицца', optionB: 'Суши', category: 'popular', tags: ['champion:food'] },
+  { id: generateId(), optionA: 'Париж', optionB: 'Рим', category: 'popular', tags: ['champion:cities'] },
+  { id: generateId(), optionA: 'Брэд Питт', optionB: 'Леонардо ДиКаприо', category: 'popular', tags: ['champion:cinema'] },
+  { id: generateId(), optionA: 'Marvel', optionB: 'DC', category: 'popular', tags: ['champion:cinema'] },
+  { id: generateId(), optionA: 'PlayStation', optionB: 'Xbox', category: 'popular', tags: ['champion:gaming'] },
+  { id: generateId(), optionA: 'Кофе', optionB: 'Чай', category: 'popular', tags: ['champion:food'] },
   // Парадокс
   { id: generateId(), optionA: 'Деньги', optionB: 'Свобода', category: 'paradox' },
   { id: generateId(), optionA: 'Любовь', optionB: 'Деньги', category: 'paradox' },
@@ -45,11 +45,11 @@ export const STARTER_CARDS: Omit<VerdictCard, 'votesA' | 'votesB' | 'totalVotes'
   { id: generateId(), optionA: 'Солнце', optionB: 'Луна', category: 'fast' },
   { id: generateId(), optionA: 'Город', optionB: 'Природа', category: 'fast' },
   // Игровые
-  { id: generateId(), optionA: 'Бэтмен', optionB: 'Человек-паук', category: 'gaming' },
-  { id: generateId(), optionA: 'Гарри Поттер', optionB: 'Властелин колец', category: 'gaming' },
-  { id: generateId(), optionA: 'GTA', optionB: 'Call of Duty', category: 'gaming' },
-  { id: generateId(), optionA: 'PUBG', optionB: 'Fortnite', category: 'gaming' },
-  { id: generateId(), optionA: 'Dota', optionB: 'League of Legends', category: 'gaming' },
+  { id: generateId(), optionA: 'Бэтмен', optionB: 'Человек-паук', category: 'gaming', tags: ['champion:gaming'] },
+  { id: generateId(), optionA: 'Гарри Поттер', optionB: 'Властелин колец', category: 'gaming', tags: ['champion:gaming'] },
+  { id: generateId(), optionA: 'GTA', optionB: 'Call of Duty', category: 'gaming', tags: ['champion:gaming'] },
+  { id: generateId(), optionA: 'PUBG', optionB: 'Fortnite', category: 'gaming', tags: ['champion:gaming'] },
+  { id: generateId(), optionA: 'Dota', optionB: 'League of Legends', category: 'gaming', tags: ['champion:gaming'] },
   // Познай себя: Любовь
   { id: generateId(), optionA: 'Любовь', optionB: 'Свобода', category: 'love' },
   { id: generateId(), optionA: 'Простить', optionB: 'Уйти', category: 'love' },

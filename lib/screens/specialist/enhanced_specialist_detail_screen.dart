@@ -5,6 +5,7 @@ import '../../constants/app_constants.dart';
 import '../../models/firestore_models.dart';
 import '../../providers/firestore_providers.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/chat_navigation.dart';
 import '../../services/test_data_service.dart';
 import '../../widgets/design_system_button.dart';
 
@@ -994,7 +995,7 @@ class _EnhancedSpecialistDetailScreenState extends ConsumerState<EnhancedSpecial
             Expanded(
               child: OutlinedButton(
                 onPressed: () {
-                  // TODO: Открыть чат
+                  openChatWithSpecialist(context, ref, widget.specialistId);
                 },
                 style: OutlinedButton.styleFrom(
                   backgroundColor: AppConstants.surfaceColor,

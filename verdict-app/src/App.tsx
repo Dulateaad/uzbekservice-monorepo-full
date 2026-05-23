@@ -11,10 +11,11 @@ import { ProfileScreen } from '@/screens/ProfileScreen';
 import { KnowYourselfScreen } from '@/screens/KnowYourselfScreen';
 import { useUser } from '@/context/UserContext';
 import { SearchWithTabs } from '@/components/SearchWithTabs';
+import { ensureCityContent } from '@/services/geo-trigger-service';
 import type { VerdictCard } from '@/types/card';
 
 export function App() {
-  const { isOnboarded } = useUser();
+  const { isOnboarded, user } = useUser();
   const [activeTab, setActiveTab] = useState<TabId>('flow');
   const [flowSubsection, setFlowSubsection] = useState<string | null>(null);
   const [championMode, setChampionMode] = useState<string | null>(null);
@@ -29,6 +30,12 @@ export function App() {
   useEffect(() => {
     initTelegramWebApp();
   }, []);
+
+  useEffect(() => {
+    if (user?.city && user?.country) {
+      ensureCityContent(user.city, user.country).catch(() => {});
+    }
+  }, [user?.city, user?.country]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -50,7 +57,6 @@ export function App() {
   const showPeopleForm = flowSubsection === 'people' && peopleCreateMode;
   const inCardFlow =
     (flowSubsection !== null && !showAskPeopleForm && !showPeopleForm) || championMode !== null;
-  const currentSubsection = flowSubsection || championMode || 'popular';
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -58,6 +64,9 @@ export function App() {
     setChampionMode(null);
     setAskPeopleCreateMode(true);
     setPeopleCreateMode(true);
+    setShowProfile(false);
+    setShowSearch(false);
+    setSearchSelectedCard(null);
   };
 
   const handleFlowSelect = (subsection: string) => {
@@ -133,7 +142,13 @@ export function App() {
         <PeopleCreateScreen onCreated={() => setPeopleCreateMode(false)} onBack={goBack} />
       ) : inCardFlow || searchSelectedCard ? (
         <CardFlowScreen
-          subsection={searchSelectedCard ? 'popular' : currentSubsection}
+          subsection={
+            searchSelectedCard
+              ? 'popular'
+              : championMode != null
+                ? 'champion'
+                : (flowSubsection ?? 'popular')
+          }
           mode={championMode}
           onBack={goBack}
           initialCard={searchSelectedCard}

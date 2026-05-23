@@ -41,6 +41,8 @@ class DefaultFirebaseOptions {
     storageBucket: 'odo-business-hub.firebasestorage.app',
   );
 
+  /// Проект Firebase: **odo-business-hub** (как в веб-конфиге).
+  /// Для Android лучше подставить `mobilesdk_app_id` из `google-services.json` этого же проекта.
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyC9CTXPa_2UzpVAiLzTR1hlVm7RD6cmhHw',
     appId: '1:678613616925:web:2f35b684fe08c0d2a439f4',
@@ -49,22 +51,24 @@ class DefaultFirebaseOptions {
     storageBucket: 'odo-business-hub.firebasestorage.app',
   );
 
+  /// Совпадает с `ios/Runner/GoogleService-Info.plist` (odo-business-hub, com.odo.odoUzApp).
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC9CTXPa_2UzpVAiLzTR1hlVm7RD6cmhHw',
-    appId: '1:678613616925:web:2f35b684fe08c0d2a439f4',
+    apiKey: 'AIzaSyDiNhVApW6GqlbrFJTgtq_4Z8o0EfYJikE',
+    appId: '1:678613616925:ios:c9e0fc97c5ab5289a439f4',
     messagingSenderId: '678613616925',
     projectId: 'odo-business-hub',
     storageBucket: 'odo-business-hub.firebasestorage.app',
-    iosBundleId: 'com.odo.uzapp.dev',
+    iosBundleId: 'com.odo.odoUzApp',
   );
 
+  /// Те же значения, что и iOS, пока для macOS нет отдельного приложения в Firebase.
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC9CTXPa_2UzpVAiLzTR1hlVm7RD6cmhHw',
-    appId: '1:678613616925:web:2f35b684fe08c0d2a439f4',
+    apiKey: 'AIzaSyDiNhVApW6GqlbrFJTgtq_4Z8o0EfYJikE',
+    appId: '1:678613616925:ios:c9e0fc97c5ab5289a439f4',
     messagingSenderId: '678613616925',
     projectId: 'odo-business-hub',
     storageBucket: 'odo-business-hub.firebasestorage.app',
-    iosBundleId: 'com.odo.uzapp.dev',
+    iosBundleId: 'com.odo.odoUzApp',
   );
 }
 

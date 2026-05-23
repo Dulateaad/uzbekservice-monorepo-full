@@ -90,6 +90,8 @@ class Work {
   final double? price;
   final String currency;
   final Map<String, dynamic>? metadata;
+  /// Связь сделка ↔ заказ (Business Hub), 1:1 по умолчанию.
+  final String? dealId;
   final String createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -110,6 +112,7 @@ class Work {
     this.price,
     this.currency = 'UZS',
     this.metadata,
+    this.dealId,
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
@@ -132,6 +135,7 @@ class Work {
       'price': price,
       'currency': currency,
       'metadata': metadata,
+      if (dealId != null) 'dealId': dealId,
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -163,6 +167,7 @@ class Work {
       metadata: map['metadata'] != null
           ? Map<String, dynamic>.from(map['metadata'] as Map)
           : null,
+      dealId: map['dealId'] as String?,
       createdBy: map['createdBy'] ?? '',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -185,6 +190,8 @@ class Work {
     double? price,
     String? currency,
     Map<String, dynamic>? metadata,
+    String? dealId,
+    bool clearDealId = false,
     String? createdBy,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -205,6 +212,7 @@ class Work {
       price: price ?? this.price,
       currency: currency ?? this.currency,
       metadata: metadata ?? this.metadata,
+      dealId: clearDealId ? null : (dealId ?? this.dealId),
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDiNhVApW6GqlbrFJTgtq_4Z8o0EfYJikE</string>
+	<key>GCM_SENDER_ID</key>
+	<string>678613616925</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.odo.odoUzApp</string>
+	<key>PROJECT_ID</key>
+	<string>odo-business-hub</string>
+	<key>STORAGE_BUCKET</key>
+	<string>odo-business-hub.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false/>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false/>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true/>
+	<key>IS_GCM_ENABLED</key>
+	<true/>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true/>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:678613616925:ios:c9e0fc97c5ab5289a439f4</string>
+</dict>
+</plist>

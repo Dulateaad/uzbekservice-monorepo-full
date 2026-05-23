@@ -51,6 +51,7 @@ peoplehub/
 │   │   └── seed.ts         # Тестовые данные
 │   └── package.json
 ├── docker-compose.yml      # PostgreSQL + Redis + Server + Client
+├── emulator-tests/         # Vitest + Rules Unit Testing (Firestore Emulator)
 └── README.md
 ```
 
@@ -194,6 +195,20 @@ SEARCHING → DRIVER_ASSIGNED → DRIVER_ARRIVING → DRIVER_ARRIVED
 2. Получите Bot Token
 3. Настройте Web App URL в BotFather: `/newapp`
 4. Укажите Token в `server/.env` → `TELEGRAM_BOT_TOKEN`
+
+## Тесты правил Firestore (Firebase Emulator)
+
+Скрипты в [emulator-tests/](./emulator-tests/) выполняются через **Firestore Emulator** (`firebase emulators:exec`). Команда: `npm run test:firestore-rules` (аналог: `npm run test:emulator`) — **скрипт сам подставляет абсолютный путь** к `emulator-tests`, можно вызывать **из подпапок** (`loadtest/locust` и т.д.), в отличие от сырого `npm install --prefix emulator-tests` из «чужой» папки.
+
+- Зависимости эмулятор-тестов: один раз `npm install --prefix emulator-tests` из **корня** `peoplehub/`, либо `cd peoplehub/emulator-tests && npm install`. Не вставляйте в одну строку с `npm` комментарий вида `# ...` — в npm 11+ это ломается.
+- Нужен **JDK 11+** (лучше **17 или 21**; только Java/Plug-in 1.8 в системе **недостаточно** — поставьте отдельный JDK, напр. Homebrew: `brew install --cask temurin@21` или [Adoptium](https://adoptium.net/). Проверка: `"/usr/libexec/java_home" -V` (должны появиться 17/21) и `java -version`. Потом **в zsh** лучше без комментария в той же строке, что и `export` (так удобнее копировать). Пример:  
+  `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`  
+  (отдельной строкой, без `#` в конце) и снова `npm run test:firestore-rules`.
+
+## Нагрузочное тестирование (k6)
+
+Сценарии под **ваш** хостинг и **Cloud Function** `api`: [loadtest/README.md](./loadtest/README.md)  
+Коротко: `cd loadtest && k6 run k6/mixed.js` (нужен `brew install k6`).
 
 ## Лицензия
 

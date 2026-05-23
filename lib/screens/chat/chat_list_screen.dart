@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../widgets/design_system_button.dart';
 import '../../providers/chat_providers.dart';
+import '../../providers/main_shell_tab_provider.dart';
 import '../../models/chat_models.dart';
 import 'package:intl/intl.dart';
 
@@ -101,46 +102,51 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConstants.spacingXL),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 80,
-              color: AppConstants.textSecondary.withOpacity(0.5),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.spacingXL),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 80,
+                  color: AppConstants.textSecondary.withOpacity(0.5),
+                ),
+                const SizedBox(height: AppConstants.spacingLG),
+                Text(
+                  'Нет активных чатов',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppConstants.textPrimary,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppConstants.spacingMD),
+                Text(
+                  'Чаты появятся после создания заказа с специалистом',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppConstants.textSecondary,
+                        height: 1.5,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppConstants.spacingXL),
+                DesignSystemButton(
+                  text: 'Найти специалиста',
+                  onPressed: () {
+                    ref.read(mainShellTabIndexProvider.notifier).state = 0;
+                  },
+                  type: ButtonType.primary,
+                ),
+              ],
             ),
-            const SizedBox(height: AppConstants.spacingLG),
-            Text(
-              'Нет активных чатов',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppConstants.textPrimary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppConstants.spacingMD),
-            Text(
-              'Чаты появятся после создания заказа с специалистом',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppConstants.textSecondary,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppConstants.spacingXL),
-            DesignSystemButton(
-              text: 'Найти специалиста',
-              onPressed: () {
-                context.go('/home');
-              },
-              type: ButtonType.primary,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

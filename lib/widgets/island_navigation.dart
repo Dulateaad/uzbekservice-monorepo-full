@@ -15,15 +15,13 @@ class IslandNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Получаем безопасную зону снизу для правильного позиционирования
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    
     return Positioned(
-      bottom: AppConstants.spacingMD + bottomPadding,
       left: AppConstants.spacingMD,
       right: AppConstants.spacingMD,
+      bottom: 0,
       child: SafeArea(
         top: false,
+        minimum: EdgeInsets.zero,
         child: Container(
         decoration: BoxDecoration(
           color: AppConstants.surfaceColor,

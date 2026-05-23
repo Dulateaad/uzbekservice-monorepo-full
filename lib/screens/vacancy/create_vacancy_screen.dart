@@ -5,7 +5,9 @@ import '../../constants/app_constants.dart';
 import '../../models/vacancy.dart';
 import '../../providers/vacancy_providers.dart';
 import '../../providers/firestore_auth_provider.dart';
+import '../../providers/business_hub/bh_providers.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/vacancy_post_permission.dart';
 
 class CreateVacancyScreen extends ConsumerStatefulWidget {
   const CreateVacancyScreen({super.key});
@@ -29,6 +31,21 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
   bool _isHot = false;
   bool _isUrgent = false;
   final List<String> _requirements = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final user = ref.read(firestoreAuthProvider).user;
+      if (user == null || !mounted) return;
+      await ref.read(bhOrganizationProvider.notifier).loadByOwner(user.id);
+      if (!mounted) return;
+      final org = ref.read(bhOrganizationProvider).valueOrNull;
+      if (org != null && _companyController.text.isEmpty) {
+        setState(() => _companyController.text = org.name);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -72,8 +89,10 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
       }
       return;
     }
-    // Компании и специалисты могут создавать вакансии
-    if (user.userType != 'company' && user.userType != 'specialist') {
+    await ref.read(bhOrganizationProvider.notifier).loadByOwner(user.id);
+    if (!mounted) return;
+    final bhOrg = ref.read(bhOrganizationProvider).valueOrNull;
+    if (!userCanPostVacancy(user, bhOrg)) {
       final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -108,25 +127,24 @@ class _CreateVacancyScreenState extends ConsumerState<CreateVacancyScreen> {
       final service = ref.read(vacancyServiceProvider);
       final success = await service.createVacancy(vacancy);
 
+      if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
-      if (mounted) {
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.vacancyCreated),
-              backgroundColor: Colors.green,
-            ),
-          );
-          ref.invalidate(allVacanciesProvider);
-          context.pop();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l10n.vacancyCreateError),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.vacancyCreated),
+            backgroundColor: Colors.green,
+          ),
+        );
+        ref.invalidate(allVacanciesProvider);
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.vacancyCreateError),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

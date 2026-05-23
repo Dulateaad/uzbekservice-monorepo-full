@@ -44,7 +44,8 @@ class _AnamaStartScreenState extends ConsumerState<AnamaStartScreen> {
       if (raw.isEmpty) {
         await prefs.remove(_prefsKey);
       } else {
-        await prefs.setString(_prefsKey, raw.length > 48 ? raw.substring(0, 48) : raw);
+        await prefs.setString(
+            _prefsKey, raw.length > 48 ? raw.substring(0, 48) : raw);
       }
 
       final auth = FirebaseAuth.instance;
@@ -52,7 +53,7 @@ class _AnamaStartScreenState extends ConsumerState<AnamaStartScreen> {
         await auth.signInAnonymously();
       }
       if (!mounted) return;
-      context.go('/pilot/age');
+      context.go('/age');
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -62,53 +63,69 @@ class _AnamaStartScreenState extends ConsumerState<AnamaStartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Anama — пилот')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
+        title: const Text('Пилот — старт'),
+      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Школьный пилот',
-                style: Theme.of(context).textTheme.headlineSmall,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Введите ник или класс (необязательно) и нажмите «Начать».',
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _labelCtrl,
+                    maxLength: 48,
+                    decoration: const InputDecoration(
+                      labelText: 'Ник или класс',
+                      hintText: 'Например: 9Б',
+                      border: OutlineInputBorder(),
+                      counterText: '',
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                            color: theme.colorScheme.error, fontSize: 13),
+                      ),
+                    ),
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _start,
+                    icon: _busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.play_arrow_rounded),
+                    label: Text(_busy ? 'Вход…' : 'Начать'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Короткий опрос, затем измерение пульса с устройства (ESP32 → Firebase). '
-                'Данные обрабатываются в обезличенном виде. Это не медицинская диагностика.',
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _labelCtrl,
-                maxLength: 48,
-                decoration: const InputDecoration(
-                  labelText: 'Ник или класс (необязательно)',
-                  hintText: 'Например: 9Б или «Аня» — только для удобства в пилоте',
-                  border: OutlineInputBorder(),
-                  counterText: '',
-                ),
-              ),
-              const Spacer(),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(_error!, style: const TextStyle(color: Colors.red)),
-                ),
-              FilledButton(
-                onPressed: _busy ? null : _start,
-                child: Text(_busy ? 'Вход…' : 'Начать (анонимно)'),
-              ),
-              TextButton(
-                onPressed: () => context.go('/pilot/privacy'),
-                child: const Text('Политика пилота и дисклеймер'),
-              ),
-              TextButton(
-                onPressed: () => context.go('/'),
-                child: const Text('На главную'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

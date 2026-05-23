@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../widgets/design_system_button.dart';
+import '../../utils/chat_navigation.dart';
 
 class AdvancedSearchScreen extends ConsumerStatefulWidget {
   const AdvancedSearchScreen({super.key});
@@ -724,7 +725,9 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen>
                   DesignSystemButton(
                     text: 'Написать',
                     onPressed: () {
-                      context.go('/home/chat/specialist_${specialist['id']}');
+                      final id = specialist['id']?.toString();
+                      if (id == null || id.isEmpty) return;
+                      openChatWithSpecialist(context, ref, id);
                     },
                     type: ButtonType.secondary,
                   ),

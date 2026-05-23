@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KIRA AI</title>
+  <script>
+    (function () {
+      var path = window.location.pathname || "";
+      var parts = path.replace(/^\/+|\/+$/g, "").split("/");
+      var id = parts.length >= 2 && parts[0] === "product" ? parts.slice(1).join("/") : "";
+      if (id) {
+        window.location.replace("/product?id=" + encodeURIComponent(id));
+      } else {
+        window.location.replace("/");
+      }
+    })();
+  </script>
+</head>
+<body></body>
+</html>

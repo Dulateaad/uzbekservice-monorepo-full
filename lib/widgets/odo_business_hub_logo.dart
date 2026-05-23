@@ -18,7 +18,7 @@ class OdoBusinessHubLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     // Пытаемся загрузить изображение из assets
     return Image.asset(
-      'assets/images/logos/odo_business_hub.png',
+      'assets/images/logos/odo_business_hub.jpg',
       width: size,
       height: size,
       fit: BoxFit.contain,

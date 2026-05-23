@@ -21,13 +21,13 @@ export function SubscriptionDialog({ isOpen, onOpenChange, onSubscribe }: Subscr
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-headline text-xl leading-snug">
-            ✨ Лимит генераций достигнут
+          <DialogTitle className="font-headline text-xl font-normal leading-snug">
+            ✨ Лимит генераций достигнут ✨
           </DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-4 pt-2 text-left text-sm text-muted-foreground">
               <p className="text-foreground/90">
-                Вы уже в числе первых пользователей KIRA 🤍
+                Вы уже в числе первых пользователей KIRA 💜
               </p>
               <p>Скоро откроем PRO-доступ:</p>
               <ul className="list-none space-y-1.5 pl-0">
@@ -50,7 +50,7 @@ export function SubscriptionDialog({ isOpen, onOpenChange, onSubscribe }: Subscr
             className="w-full"
             size="lg"
           >
-            ✨ Получить ранний доступ
+            Получить ранний доступ
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Приложению нужен доступ к фотографиям, чтобы вы могли выбрать изображение для профиля или прикрепить снимок к заявке.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Геолокация используется для показа услуг рядом с вами и удобного выбора адреса на карте.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Геолокация может использоваться в том числе в фоне для актуального статуса заказа и уведомлений, связанных с местом оказания услуги.</string>
 </dict>
 </plist>

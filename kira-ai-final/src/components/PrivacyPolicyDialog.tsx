@@ -24,30 +24,15 @@ function PolicyBody() {
   return (
     <div className="space-y-5 text-sm text-muted-foreground">
       <div>
-        <h3 className="font-bold text-foreground text-base">Приложения и сервиса KIRA AI</h3>
+        <h3 className="font-normal text-foreground text-base">Приложения и сервиса KIRA AI</h3>
         <p className="mt-1">Дата вступления в силу: 1 января 2026 года</p>
-        <p className="mt-2 text-foreground">Оператор: ИП «Dana Chiare»</p>
-        <p>
-          Email:{' '}
-          <a href="mailto:admin@stylebykira.kz" className="text-primary hover:underline">
-            admin@stylebykira.kz
-          </a>
-        </p>
-        <p>
-          Веб-сайт:{' '}
-          <a
-            href="https://stylebykira.kz"
-            className="text-primary hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            https://stylebykira.kz
-          </a>
+        <p className="mt-2 text-muted-foreground">
+          Контактный email, веб-сайт и сведения об операторе приведены в конце документа.
         </p>
       </div>
 
       <section>
-        <h4 className="font-semibold text-foreground">1. Общие положения</h4>
+        <h4 className="font-normal text-foreground">1. Общие положения</h4>
         <p className="mt-2">
           Настоящая Политика конфиденциальности регулирует порядок сбора, обработки, хранения и защиты
           персональных данных пользователей сервиса KIRA, включая:
@@ -71,10 +56,10 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">2. Какие данные мы собираем</h4>
+        <h4 className="font-normal text-foreground">2. Какие данные мы собираем</h4>
         <p className="mt-2">Мы можем собирать следующие категории данных:</p>
 
-        <p className="mt-3 font-medium text-foreground">2.1 Данные аккаунта</p>
+        <p className="mt-3 text-foreground">2.1 Данные аккаунта</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– имя</li>
           <li>– email</li>
@@ -83,7 +68,7 @@ function PolicyBody() {
           <li>– фотография профиля</li>
         </ul>
 
-        <p className="mt-3 font-medium text-foreground">2.2 Данные примерки и AI-анализа</p>
+        <p className="mt-3 text-foreground">2.2 Данные примерки и AI-анализа</p>
         <p className="mt-1">При использовании AI-примерки:</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– фотографии пользователя</li>
@@ -91,13 +76,13 @@ function PolicyBody() {
           <li>– изображения примеренных вещей</li>
           <li>– результаты визуализации</li>
         </ul>
-        <p className="mt-2 font-medium text-foreground">Важно:</p>
+        <p className="mt-2 text-foreground">Важно:</p>
         <p>
           Эти данные используются исключительно для функционирования сервиса примерки и
           персонализации рекомендаций.
         </p>
 
-        <p className="mt-3 font-medium text-foreground">2.3 Данные заказов и маркетплейса</p>
+        <p className="mt-3 text-foreground">2.3 Данные заказов и маркетплейса</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– история заказов</li>
           <li>– выбранные товары</li>
@@ -106,7 +91,7 @@ function PolicyBody() {
         </ul>
         <p className="mt-1">KIRA не хранит данные банковских карт.</p>
 
-        <p className="mt-3 font-medium text-foreground">2.4 Технические данные</p>
+        <p className="mt-3 text-foreground">2.4 Технические данные</p>
         <p className="mt-1">Автоматически собираются:</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– IP-адрес</li>
@@ -117,7 +102,7 @@ function PolicyBody() {
           <li>– действия пользователя внутри приложения</li>
         </ul>
 
-        <p className="mt-3 font-medium text-foreground">2.5 Данные аналитики (Google Analytics, Firebase Analytics)</p>
+        <p className="mt-3 text-foreground">2.5 Данные аналитики (Google Analytics, Firebase Analytics)</p>
         <p className="mt-1">Мы используем:</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– Google Analytics</li>
@@ -133,7 +118,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">3. Cookies и технологии отслеживания</h4>
+        <h4 className="font-normal text-foreground">3. Cookies и технологии отслеживания</h4>
         <p className="mt-2">Мы используем cookies и аналогичные технологии для:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– аутентификации</li>
@@ -153,7 +138,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">4. Цели обработки данных</h4>
+        <h4 className="font-normal text-foreground">4. Цели обработки данных</h4>
         <p className="mt-2">Мы обрабатываем данные для:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– создания и управления аккаунтом</li>
@@ -170,7 +155,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">5. AI-обработка и автоматизированный анализ</h4>
+        <h4 className="font-normal text-foreground">5. AI-обработка и автоматизированный анализ</h4>
         <p className="mt-2">KIRA использует алгоритмы искусственного интеллекта для:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– визуализации одежды на пользователе</li>
@@ -193,10 +178,10 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">6. Передача данных третьим лицам</h4>
+        <h4 className="font-normal text-foreground">6. Передача данных третьим лицам</h4>
         <p className="mt-2">Мы можем передавать данные следующим категориям:</p>
 
-        <p className="mt-3 font-medium text-foreground">6.1 Партнёры маркетплейса</p>
+        <p className="mt-3 text-foreground">6.1 Партнёры маркетплейса</p>
         <p className="mt-1">Для обработки заказов:</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– бренды</li>
@@ -205,7 +190,7 @@ function PolicyBody() {
         </ul>
         <p className="mt-1">Передаются только необходимые данные.</p>
 
-        <p className="mt-3 font-medium text-foreground">6.2 Платёжные провайдеры</p>
+        <p className="mt-3 text-foreground">6.2 Платёжные провайдеры</p>
         <p className="mt-1">Для обработки платежей:</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– банки</li>
@@ -213,7 +198,7 @@ function PolicyBody() {
         </ul>
         <p className="mt-1">KIRA не хранит данные банковских карт.</p>
 
-        <p className="mt-3 font-medium text-foreground">6.3 Облачные провайдеры</p>
+        <p className="mt-3 text-foreground">6.3 Облачные провайдеры</p>
         <p className="mt-1">Мы используем:</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>– Google Firebase</li>
@@ -226,7 +211,7 @@ function PolicyBody() {
           <li>– аналитики</li>
         </ul>
 
-        <p className="mt-3 font-medium text-foreground">6.4 Аналитические сервисы</p>
+        <p className="mt-3 text-foreground">6.4 Аналитические сервисы</p>
         <ul className="mt-1 list-none space-y-1 pl-0">
           <li>Google Analytics</li>
           <li>Firebase Analytics</li>
@@ -234,7 +219,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">7. Где хранятся данные</h4>
+        <h4 className="font-normal text-foreground">7. Где хранятся данные</h4>
         <p className="mt-2">Данные могут храниться:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– на серверах Google Cloud</li>
@@ -248,26 +233,26 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">8. Срок хранения данных</h4>
+        <h4 className="font-normal text-foreground">8. Срок хранения данных</h4>
         <p className="mt-2">Мы храним данные:</p>
         <p className="mt-2">
-          <span className="font-medium text-foreground">Аккаунт:</span> пока аккаунт активен
+          <span className="text-foreground">Аккаунт:</span> пока аккаунт активен
         </p>
         <p className="mt-1">
-          <span className="font-medium text-foreground">Данные заказов:</span> до 5 лет (в соответствии с
+          <span className="text-foreground">Данные заказов:</span> до 5 лет (в соответствии с
           финансовыми требованиями)
         </p>
         <p className="mt-1">
-          <span className="font-medium text-foreground">Аналитические данные:</span> до 24 месяцев
+          <span className="text-foreground">Аналитические данные:</span> до 24 месяцев
         </p>
         <p className="mt-1">
-          <span className="font-medium text-foreground">Фотографии примерки:</span> до удаления пользователем
+          <span className="text-foreground">Фотографии примерки:</span> до удаления пользователем
           или аккаунта
         </p>
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">9. Права пользователя</h4>
+        <h4 className="font-normal text-foreground">9. Права пользователя</h4>
         <p className="mt-2">Пользователь имеет право:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– получить информацию о своих данных</li>
@@ -285,7 +270,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">10. Безопасность данных</h4>
+        <h4 className="font-normal text-foreground">10. Безопасность данных</h4>
         <p className="mt-2">Мы используем:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– шифрование данных</li>
@@ -297,7 +282,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">11. Дети</h4>
+        <h4 className="font-normal text-foreground">11. Дети</h4>
         <p className="mt-2">
           Сервис не предназначен для лиц младше 16 лет без согласия родителей. Мы не собираем
           сознательно данные детей без согласия законных представителей.
@@ -305,7 +290,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">12. Основание обработки данных</h4>
+        <h4 className="font-normal text-foreground">12. Основание обработки данных</h4>
         <p className="mt-2">Обработка осуществляется на основании:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– согласия пользователя</li>
@@ -315,7 +300,7 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">13. Удаление данных</h4>
+        <h4 className="font-normal text-foreground">13. Удаление данных</h4>
         <p className="mt-2">Пользователь может запросить удаление:</p>
         <ul className="mt-2 list-none space-y-1 pl-0">
           <li>– аккаунта</li>
@@ -332,19 +317,28 @@ function PolicyBody() {
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">14. Изменения политики</h4>
+        <h4 className="font-normal text-foreground">14. Изменения политики</h4>
         <p className="mt-2">Мы можем обновлять данную Политику. Новая версия публикуется на сайте.</p>
       </section>
 
       <section>
-        <h4 className="font-semibold text-foreground">15. Контакты</h4>
-        <p className="mt-2">По всем вопросам:</p>
-        <p className="mt-1">
+        <h4 className="font-normal text-foreground">15. Контакты</h4>
+        <p className="mt-2">
+          Актуальный адрес электронной почты, веб-сайт сервиса и реквизиты оператора персональных данных
+          указаны в заключительном блоке ниже.
+        </p>
+      </section>
+
+      <section className="border-t border-border pt-4 space-y-3">
+        <h4 className="font-normal text-foreground text-base">Контакты, веб-сайт и оператор</h4>
+        <p>
+          Email:{' '}
           <a href="mailto:admin@stylebykira.kz" className="text-primary hover:underline">
             admin@stylebykira.kz
           </a>
         </p>
-        <p className="mt-1">
+        <p>
+          Веб-сайт:{' '}
           <a
             href="https://stylebykira.kz"
             className="text-primary hover:underline"
@@ -354,6 +348,8 @@ function PolicyBody() {
             https://stylebykira.kz
           </a>
         </p>
+        <p className="pt-2 text-foreground">Оператор персональных данных</p>
+        <p className="text-foreground">ИП «Dana Chiare»</p>
       </section>
     </div>
   );
@@ -375,7 +371,7 @@ export function PrivacyPolicyDialog({ isOpen, onOpenChange, onAgree }: PrivacyPo
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ</DialogTitle>
+          <DialogTitle className="font-headline text-2xl font-normal">ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ</DialogTitle>
           <DialogDescription>
             Пожалуйста, ознакомьтесь и примите нашу политику конфиденциальности, чтобы продолжить.
           </DialogDescription>
@@ -386,7 +382,7 @@ export function PrivacyPolicyDialog({ isOpen, onOpenChange, onAgree }: PrivacyPo
         <DialogFooter className="flex-col sm:flex-row gap-2 pt-4">
           <div className="flex items-center space-x-2">
             <Checkbox id="terms" checked={isAgreed} onCheckedChange={(checked) => setIsAgreed(checked as boolean)} />
-            <Label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            <Label htmlFor="terms" className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
               Я прочитал(а) и принимаю Политику конфиденциальности
             </Label>
           </div>

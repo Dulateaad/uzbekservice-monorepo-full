@@ -1,41 +1,49 @@
 import { hapticFeedback } from '@/lib/telegram';
 import { useLocale } from '@/context/LocaleContext';
+import { CHAMPION_CATEGORY_IDS } from '@/data/champion-categories';
 
 interface ChampionScreenProps {
   onSelect: (mode: string) => void;
   onBack?: () => void;
 }
 
-const MODES: { id: string; key: keyof typeof import('@/i18n/translations').translations.en.championModes }[] = [
-  { id: 'elimination', key: 'elimination' },
-  { id: 'round-robin', key: 'roundRobin' },
-  { id: 'league', key: 'league' },
-];
-const EMOJIS: Record<string, string> = { elimination: '🏆', 'round-robin': '🔁', league: '⚽' };
+const CATEGORY_EMOJI: Record<(typeof CHAMPION_CATEGORY_IDS)[number], string> = {
+  football: '⚽',
+  phones: '📱',
+  cinema: '🎬',
+  gaming: '🎮',
+  food: '🍽️',
+  cities: '🌆',
+};
 
 export function ChampionScreen({ onSelect }: ChampionScreenProps) {
   const { t } = useLocale();
   return (
-    <div className="bg-[var(--app-bg)] text-[var(--app-text)] pb-[env(safe-area-inset-bottom)]">
+    <div className="h-full min-h-0 overflow-y-auto bg-[var(--app-bg)] text-[var(--app-text)] pb-[env(safe-area-inset-bottom)]">
       <main className="p-4">
-        <p className="text-[var(--app-text-muted)] mb-4">{t.chooseTournamentMode}</p>
+        <h2 className="text-lg font-bold text-[var(--app-text)] mb-1">{t.championSectorTitle}</h2>
+        <p className="text-sm text-[var(--app-text-muted)] mb-4">{t.championSectorDesc}</p>
         <div className="space-y-3">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => {
-                hapticFeedback('light');
-                onSelect(m.id);
-              }}
-              className="w-full p-4 rounded-2xl bg-[var(--app-bg-secondary)] active:scale-[0.98] transition-transform text-left border border-[var(--app-border)]"
-            >
-              <div className="flex items-center gap-3 mb-1">
-                <span className="text-2xl">{EMOJIS[m.id]}</span>
-                <span className="font-semibold text-[var(--app-text)]">{t.championModes[m.key]}</span>
-              </div>
-              <div className="text-sm text-[var(--app-text-muted)] ml-10">{t.championModeDesc[m.key]}</div>
-            </button>
-          ))}
+          {CHAMPION_CATEGORY_IDS.map((id) => {
+            const cat = t.championCategories[id];
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  hapticFeedback('light');
+                  onSelect(`champion:${id}`);
+                }}
+                className="w-full p-4 rounded-2xl bg-[var(--app-bg-secondary)] active:scale-[0.98] transition-transform text-left border border-[var(--app-border)]"
+              >
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="text-2xl">{CATEGORY_EMOJI[id]}</span>
+                  <span className="font-semibold text-[var(--app-text)]">{cat.title}</span>
+                </div>
+                <div className="text-sm text-[var(--app-text-muted)] ml-10">{cat.desc}</div>
+              </button>
+            );
+          })}
         </div>
       </main>
     </div>

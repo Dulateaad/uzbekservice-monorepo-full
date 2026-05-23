@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,7 +8,6 @@ import '../../constants/app_constants.dart';
 import '../../models/firestore_models.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/simple_google_maps_widget.dart';
-import '../../services/google_maps_service.dart';
 
 /// Экран поиска специалистов рядом на карте
 class FindNearbyScreen extends ConsumerStatefulWidget {
@@ -77,35 +75,30 @@ class _FindNearbyScreenState extends ConsumerState<FindNearbyScreen>
 
   Future<void> _getCurrentLocation() async {
     try {
-      if (kIsWeb) {
-        // Для веба используем Geolocator
-        LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-        }
-        
-        if (permission == LocationPermission.denied || 
-            permission == LocationPermission.deniedForever) {
-          print('⚠️ Геолокация отклонена, используем Ташкент');
-          setState(() => _isLoadingLocation = false);
-          return;
-        }
-        
-        Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 5),
-        );
-        
-        if (mounted) {
-          setState(() {
-            _userLat = position.latitude;
-            _userLng = position.longitude;
-            _isLoadingLocation = false;
-          });
-          print('✅ Местоположение: ${position.latitude}, ${position.longitude}');
-        }
-      } else {
-        setState(() => _isLoadingLocation = false);
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        print('⚠️ Геолокация отклонена, используем Ташкент');
+        if (mounted) setState(() => _isLoadingLocation = false);
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 8),
+      );
+
+      if (mounted) {
+        setState(() {
+          _userLat = position.latitude;
+          _userLng = position.longitude;
+          _isLoadingLocation = false;
+        });
+        print('✅ Местоположение: ${position.latitude}, ${position.longitude}');
       }
     } catch (e) {
       print('⚠️ Ошибка геолокации: $e');
@@ -285,25 +278,23 @@ class _FindNearbyScreenState extends ConsumerState<FindNearbyScreen>
       );
     }
     
-    if (!kIsWeb) {
-      return _buildMapPlaceholder();
-    }
-    
-    // Создаем список маркеров для специалистов
     final markers = _filteredSpecialists.map((specialist) {
       if (specialist.location == null) return null;
-      final lat = specialist.location!['lat'] as double?;
-      final lng = specialist.location!['lng'] as double?;
+      final la = specialist.location!['lat'];
+      final ln = specialist.location!['lng'];
+      final lat = la is num ? la.toDouble() : null;
+      final lng = ln is num ? ln.toDouble() : null;
       if (lat == null || lng == null) return null;
-      
+
       return {
+        'id': specialist.id,
         'lat': lat,
         'lng': lng,
         'title': specialist.name,
         'category': specialist.category,
       };
     }).where((m) => m != null).cast<Map<String, dynamic>>().toList();
-    
+
     return SimpleGoogleMapsWidget(
       lat: _userLat,
       lng: _userLng,
@@ -311,142 +302,14 @@ class _FindNearbyScreenState extends ConsumerState<FindNearbyScreen>
       height: MediaQuery.of(context).size.height,
       width: MediaQuery.of(context).size.width,
       markers: markers,
-    );
-  }
-
-  Widget _buildMapPlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppConstants.primaryColor.withOpacity(0.1),
-            AppConstants.backgroundColor,
-          ],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Фоновый паттерн для имитации карты
-          CustomPaint(
-            size: Size.infinite,
-            painter: _MapPatternPainter(),
-          ),
-          
-          // Маркеры специалистов
-          ..._filteredSpecialists.asMap().entries.map((entry) {
-            final index = entry.key;
-            final specialist = entry.value;
-            return _buildSpecialistMarker(specialist, index);
-          }),
-          
-          // Маркер пользователя
-          Center(
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: AppConstants.primaryColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppConstants.primaryColor.withOpacity(0.4),
-                    blurRadius: 12,
-                    spreadRadius: 4,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpecialistMarker(FirestoreUser specialist, int index) {
-    // Рассчитываем позицию маркера относительно центра
-    final distance = _calculateDistance(specialist);
-    final angle = (index * 45.0) * math.pi / 180; // Распределяем по кругу
-    final radius = math.min(distance * 20, 150.0); // Масштаб расстояния
-    
-    final screenCenter = MediaQuery.of(context).size / 2;
-    final x = screenCenter.width + radius * math.cos(angle);
-    final y = screenCenter.height + radius * math.sin(angle);
-    
-    final categoryColor = _getCategoryColor(specialist.category);
-    final isSelected = _selectedSpecialist?.id == specialist.id;
-    
-    return Positioned(
-      left: x - 20,
-      top: y - 40,
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedSpecialist = specialist;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          child: Column(
-            children: [
-              Container(
-                width: isSelected ? 48 : 40,
-                height: isSelected ? 48 : 40,
-                decoration: BoxDecoration(
-                  color: categoryColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected ? Colors.white : Colors.white70,
-                    width: isSelected ? 4 : 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: categoryColor.withOpacity(0.4),
-                      blurRadius: isSelected ? 16 : 8,
-                      spreadRadius: isSelected ? 4 : 2,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    specialist.name.isNotEmpty ? specialist.name[0].toUpperCase() : '?',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: isSelected ? 20 : 16,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Text(
-                  _formatDistance(distance),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      onMarkerTap: (m) {
+        final id = m['id'] as String?;
+        if (id == null) return;
+        final idx = _specialists.indexWhere((u) => u.id == id);
+        if (idx >= 0 && mounted) {
+          setState(() => _selectedSpecialist = _specialists[idx]);
+        }
+      },
     );
   }
 
@@ -664,79 +527,6 @@ class _FindNearbyScreenState extends ConsumerState<FindNearbyScreen>
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMyLocationButton() {
-    return Positioned(
-      right: 16,
-      bottom: MediaQuery.of(context).size.height * 0.45 + 20,
-      child: Column(
-        children: [
-          // Кнопка "Моё местоположение"
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            elevation: 4,
-            shadowColor: Colors.black.withOpacity(0.15),
-            child: InkWell(
-              onTap: () async {
-                setState(() => _isLoadingLocation = true);
-                await _getCurrentLocation();
-                _applyFilters();
-              },
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 52,
-                height: 52,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.my_location,
-                  color: AppConstants.primaryColor,
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Кнопка увеличения радиуса
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            elevation: 4,
-            shadowColor: Colors.black.withOpacity(0.15),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _searchRadius = _searchRadius >= 50 ? 5 : _searchRadius + 5;
-                });
-                _applyFilters();
-              },
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 52,
-                height: 52,
-                alignment: Alignment.center,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.radar, size: 20),
-                    Text(
-                      '${_searchRadius.toInt()}км',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1463,38 +1253,3 @@ class _FindNearbyScreenState extends ConsumerState<FindNearbyScreen>
     return cat['name'] as String? ?? 'Специалист';
   }
 }
-
-/// Painter для фонового паттерна карты
-class _MapPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey.withOpacity(0.1)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    // Рисуем сетку
-    const spacing = 50.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    // Круги для имитации зон
-    final centerPaint = Paint()
-      ..color = AppConstants.primaryColor.withOpacity(0.1)
-      ..style = PaintingStyle.fill;
-    
-    final center = Offset(size.width / 2, size.height / 2);
-    canvas.drawCircle(center, 150, centerPaint);
-    
-    centerPaint.color = AppConstants.primaryColor.withOpacity(0.05);
-    canvas.drawCircle(center, 250, centerPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-

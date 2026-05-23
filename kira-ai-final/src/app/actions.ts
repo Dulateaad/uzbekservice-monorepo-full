@@ -3,6 +3,7 @@
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { firebaseConfig } from "@/firebase/config";
+import { runVirtualTryOnClient } from "@/lib/virtual-try-on-client";
 
 export type BatchAddProductsInput = {
   products: Array<{
@@ -101,7 +102,19 @@ export async function runVirtualTryOnAction(
   userPhotoDataUri: string,
   clothingImageUrl: string
 ) {
-  return { error: "Виртуальная примерка временно недоступна в веб-версии." };
+  const apiKey =
+    (typeof process !== "undefined" &&
+      (process.env.NEXT_PUBLIC_GOOGLE_GENAI_API_KEY ||
+        process.env.NEXT_PUBLIC_GEMINI_API_KEY)) ||
+    "";
+  const trimmed = apiKey.trim();
+  if (!trimmed) {
+    return {
+      error:
+        "Генерация фото в веб-версии не настроена: задайте NEXT_PUBLIC_GOOGLE_GENAI_API_KEY при сборке (см. CI / локальный .env).",
+    };
+  }
+  return runVirtualTryOnClient(userPhotoDataUri, clothingImageUrl, trimmed);
 }
 
 export async function runGenerateCatwalkVideoAction(imageDataUri: string) {

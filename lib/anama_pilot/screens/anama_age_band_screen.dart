@@ -48,7 +48,7 @@ class AnamaAgeBandScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: () => context.go('/pilot/quiz'),
+            onPressed: () => context.go('/quiz'),
             child: const Text('Далее'),
           ),
         ],

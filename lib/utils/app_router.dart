@@ -56,6 +56,7 @@ import '../screens/tools/tool_detail_screen.dart';
 import '../screens/services/services_screen.dart';
 import '../screens/business_hub/bh_main_screen.dart';
 import '../screens/business_hub/onboarding/bh_onboarding_screen.dart';
+import '../screens/business_hub/onboarding/bh_core_flow_wizard_screen.dart';
 import '../screens/business_hub/operations/bh_operations_list_screen.dart';
 import '../screens/business_hub/operations/bh_operation_form_screen.dart';
 import '../screens/business_hub/counterparties/bh_counterparties_screen.dart';
@@ -72,7 +73,11 @@ import '../screens/business_hub/crm/bh_lead_detail_screen.dart';
 import '../screens/business_hub/crm/bh_deal_detail_screen.dart';
 import '../models/business_hub/lead.dart';
 import '../models/business_hub/deal.dart';
+import '../models/work.dart';
 import '../screens/business_hub/work/bh_works_screen.dart';
+import '../screens/business_hub/work/bh_work_detail_screen.dart';
+import '../screens/business_hub/finance/bh_finance_hub_screen.dart';
+import '../screens/business_hub/finance/bh_accounting_screen.dart';
 import '../screens/vacancy/vacancy_list_screen.dart';
 import '../screens/vacancy/vacancy_detail_screen.dart';
 import '../screens/vacancy/create_vacancy_screen.dart';
@@ -285,8 +290,14 @@ class AppRouter {
             path: 'search',
             builder: (context, state) => const SearchScreen(),
           ),
-          
-            // Specialists
+
+          // Все специалисты (без категории) — совпадает с context.go('/home/specialists')
+          GoRoute(
+            path: 'specialists',
+            builder: (context, state) => const SpecialistListScreen(categoryId: 'all'),
+          ),
+
+            // Specialists по категории
             GoRoute(
               path: 'specialists/:categoryId',
               builder: (context, state) {
@@ -355,6 +366,11 @@ class AppRouter {
           
           // Orders
           GoRoute(
+            path: 'order-create/:specialistId',
+            redirect: (context, state) =>
+                '/home/order/create/${state.pathParameters['specialistId']!}',
+          ),
+          GoRoute(
             path: 'order/create/:specialistId',
             builder: (context, state) {
               final specialistId = state.pathParameters['specialistId']!;
@@ -409,6 +425,10 @@ class AppRouter {
                     builder: (context, state) => const BHOnboardingScreen(),
                   ),
                   GoRoute(
+                    path: 'core-onboarding',
+                    builder: (context, state) => const BHCoreFlowWizardScreen(),
+                  ),
+                  GoRoute(
                     path: 'operations',
                     builder: (context, state) => const BHOperationsListScreen(),
                   ),
@@ -457,7 +477,18 @@ class AppRouter {
                   ),
                   GoRoute(
                     path: 'crm',
-                    builder: (context, state) => const BHCRMScreen(),
+                    builder: (context, state) {
+                      final tab = state.uri.queryParameters['tab'];
+                      var idx = 0;
+                      if (tab == 'leads') {
+                        idx = 1;
+                      } else if (tab == 'deals') {
+                        idx = 2;
+                      } else if (tab == 'tasks') {
+                        idx = 3;
+                      }
+                      return BHCRMScreen(initialTabIndex: idx);
+                    },
                     routes: [
                       GoRoute(
                         path: 'companies',
@@ -502,6 +533,23 @@ class AppRouter {
                   GoRoute(
                     path: 'works',
                     builder: (context, state) => const BHWorksScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'detail',
+                        builder: (context, state) {
+                          final w = state.extra as Work;
+                          return BHWorkDetailScreen(work: w);
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'finance',
+                    builder: (context, state) => const BHFinanceHubScreen(),
+                  ),
+                  GoRoute(
+                    path: 'accounting',
+                    builder: (context, state) => const BHAccountingScreen(),
                   ),
                 ],
               ),

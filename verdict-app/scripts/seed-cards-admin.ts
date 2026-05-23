@@ -9,18 +9,20 @@ import { initializeApp, applicationDefault, getApps } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
 const CARDS = [
-  // Популярные
-  { optionA: 'Месси', optionB: 'Роналду', category: 'popular' },
-  { optionA: 'Мбаппе', optionB: 'Холанд', category: 'popular' },
-  { optionA: 'iPhone', optionB: 'Samsung', category: 'popular' },
-  { optionA: 'Кофе', optionB: 'Чай', category: 'popular' },
-  { optionA: 'Пицца', optionB: 'Суши', category: 'popular' },
-  { optionA: 'Барселона', optionB: 'Реал Мадрид', category: 'popular' },
+  // Популярные (tags — секторы «Чемпион»)
+  { optionA: 'Месси', optionB: 'Роналду', category: 'popular', tags: ['champion:football'] },
+  { optionA: 'Мбаппе', optionB: 'Холанд', category: 'popular', tags: ['champion:football'] },
+  { optionA: 'iPhone', optionB: 'Samsung', category: 'popular', tags: ['champion:phones'] },
+  { optionA: 'Кофе', optionB: 'Чай', category: 'popular', tags: ['champion:food'] },
+  { optionA: 'Пицца', optionB: 'Суши', category: 'popular', tags: ['champion:food'] },
+  { optionA: 'Барселона', optionB: 'Реал Мадрид', category: 'popular', tags: ['champion:football'] },
+  { optionA: 'Париж', optionB: 'Рим', category: 'popular', tags: ['champion:cities'] },
+  { optionA: 'Брэд Питт', optionB: 'Леонардо ДиКаприо', category: 'popular', tags: ['champion:cinema'] },
   { optionA: 'Футбол', optionB: 'Баскетбол', category: 'popular' },
   // Игровые
-  { optionA: 'PlayStation', optionB: 'Xbox', category: 'gaming' },
-  { optionA: 'Marvel', optionB: 'DC', category: 'gaming' },
-  { optionA: 'GTA', optionB: 'Call of Duty', category: 'gaming' },
+  { optionA: 'PlayStation', optionB: 'Xbox', category: 'gaming', tags: ['champion:gaming'] },
+  { optionA: 'Marvel', optionB: 'DC', category: 'gaming', tags: ['champion:cinema'] },
+  { optionA: 'GTA', optionB: 'Call of Duty', category: 'gaming', tags: ['champion:gaming'] },
   { optionA: 'Minecraft', optionB: 'Roblox', category: 'gaming' },
   // Парадокс
   { optionA: 'Деньги', optionB: 'Свобода', category: 'paradox' },

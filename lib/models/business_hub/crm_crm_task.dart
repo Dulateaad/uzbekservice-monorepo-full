@@ -24,6 +24,7 @@ class BHCrmTask {
   final String? description;
   final String? dealId;
   final String? leadId;
+  final String? workId;
   final String assignedTo;
   final DateTime dueDate;
   final BHCrmTaskStatus status;
@@ -39,6 +40,7 @@ class BHCrmTask {
     this.description,
     this.dealId,
     this.leadId,
+    this.workId,
     required this.assignedTo,
     required this.dueDate,
     this.status = BHCrmTaskStatus.pending,
@@ -57,6 +59,7 @@ class BHCrmTask {
         'description': description,
         'dealId': dealId,
         'leadId': leadId,
+        'workId': workId,
         'assignedTo': assignedTo,
         'dueDate': Timestamp.fromDate(dueDate),
         'status': status.firestoreValue,
@@ -73,6 +76,7 @@ class BHCrmTask {
         description: map['description'],
         dealId: map['dealId'],
         leadId: map['leadId'],
+        workId: map['workId'],
         assignedTo: map['assignedTo'] ?? '',
         dueDate: (map['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
         status: BHCrmTaskStatus.values.firstWhere(
@@ -92,14 +96,20 @@ class BHCrmTask {
     DateTime? dueDate,
     BHCrmTaskStatus? status,
     DateTime? updatedAt,
-      }) =>
+    String? dealId,
+    String? leadId,
+    String? workId,
+    String? priority,
+    String? createdBy,
+  }) =>
       BHCrmTask(
         id: id,
         organizationId: organizationId,
         title: title ?? this.title,
         description: description ?? this.description,
-        dealId: this.dealId,
-        leadId: this.leadId,
+        dealId: dealId ?? this.dealId,
+        leadId: leadId ?? this.leadId,
+        workId: workId ?? this.workId,
         assignedTo: assignedTo ?? this.assignedTo,
         dueDate: dueDate ?? this.dueDate,
         status: status ?? this.status,

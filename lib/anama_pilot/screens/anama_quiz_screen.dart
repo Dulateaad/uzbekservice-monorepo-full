@@ -42,7 +42,7 @@ class _AnamaQuizScreenState extends ConsumerState<AnamaQuizScreen> {
         pilotLabel: pilotLabel != null && pilotLabel.isNotEmpty ? pilotLabel : null,
       );
       if (!mounted) return;
-      context.go('/pilot/pulse');
+      context.go('/pulse');
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString();

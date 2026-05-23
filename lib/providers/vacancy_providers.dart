@@ -131,23 +131,65 @@ class VacancyFilterNotifier extends StateNotifier<VacancyFilter> {
   VacancyFilterNotifier() : super(const VacancyFilter());
 
   void setSearch(String? search) {
-    state = state.copyWith(search: search);
+    final s = search?.trim();
+    state = VacancyFilter(
+      search: (s == null || s.isEmpty) ? null : s,
+      category: state.category,
+      location: state.location,
+      salaryMin: state.salaryMin,
+      salaryMax: state.salaryMax,
+      intent: state.intent,
+      schedule: state.schedule,
+    );
   }
 
   void setCategory(String? category) {
-    state = state.copyWith(category: category);
+    state = VacancyFilter(
+      search: state.search,
+      category: category,
+      location: state.location,
+      salaryMin: state.salaryMin,
+      salaryMax: state.salaryMax,
+      intent: state.intent,
+      schedule: state.schedule,
+    );
   }
 
   void setLocation(String? location) {
-    state = state.copyWith(location: location);
+    final s = location?.trim();
+    state = VacancyFilter(
+      search: state.search,
+      category: state.category,
+      location: (s == null || s.isEmpty) ? null : s,
+      salaryMin: state.salaryMin,
+      salaryMax: state.salaryMax,
+      intent: state.intent,
+      schedule: state.schedule,
+    );
   }
 
   void setIntent(UserIntent? intent) {
-    state = state.copyWith(intent: intent);
+    state = VacancyFilter(
+      search: state.search,
+      category: state.category,
+      location: state.location,
+      salaryMin: state.salaryMin,
+      salaryMax: state.salaryMax,
+      intent: intent,
+      schedule: state.schedule,
+    );
   }
 
   void setSalaryRange(int? min, int? max) {
-    state = state.copyWith(salaryMin: min, salaryMax: max);
+    state = VacancyFilter(
+      search: state.search,
+      category: state.category,
+      location: state.location,
+      salaryMin: min,
+      salaryMax: max,
+      intent: state.intent,
+      schedule: state.schedule,
+    );
   }
 
   void reset() {

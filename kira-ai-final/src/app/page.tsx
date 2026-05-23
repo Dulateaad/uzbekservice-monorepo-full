@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useCollection, FirebaseClientProvider, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Product } from "@/lib/types";
+import { KIRA_CATALOG_PRODUCTS, KIRA_CATALOG_ID_SET } from "@/lib/catalog-products";
 import Loading from "./loading";
 import { ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +45,7 @@ function ProductCard({ product }: { product: Product & { id: string } }) {
             className="group overflow-hidden rounded-xl shadow-sm hover:shadow-xl transition-shadow duration-300 flex flex-col bg-card/80 backdrop-blur-sm border-white/20"
         >
             <CardContent className="p-0">
-                <Link href={`/product/${product.id}`} className="block overflow-hidden aspect-[4/5] rounded-t-xl">
+                <Link href={`/product?id=${encodeURIComponent(product.id)}`} className="block overflow-hidden aspect-[4/5] rounded-t-xl">
                     <Image
                         src={imageUrl}
                         alt={product.name}
@@ -55,7 +56,7 @@ function ProductCard({ product }: { product: Product & { id: string } }) {
                 </Link>
                 <div className="p-4 space-y-1 flex-grow">
                     <h3 className="font-body text-base leading-snug h-10 overflow-hidden">
-                        <Link href={`/product/${product.id}`} className="hover:text-primary transition-colors">
+                        <Link href={`/product?id=${encodeURIComponent(product.id)}`} className="hover:text-primary transition-colors">
                             {product.name}
                         </Link>
                     </h3>
@@ -73,50 +74,23 @@ function ProductCard({ product }: { product: Product & { id: string } }) {
     )
 }
 
+/** Скрываем позиции маркетплейса по подстрокам в названии (данные из Firestore). */
+function isProductHiddenByName(name: string): boolean {
+  const n = name.toLowerCase().replaceAll("ё", "е");
+  const markers = ["лонгслив", "шорты", "шитьем", "шитьём", "оверсайз"];
+  return markers.some((m) => n.includes(m.replaceAll("ё", "е")));
+}
+
 function ProductGrid() {
   const { firestore } = useFirebase();
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading } = useCollection<Product & { id:string }>(productsCollection);
 
-  const hardcodedProduct: Product & { id: string } = {
-    id: 'jacket_black_gold_001',
-    name: 'Укороченный жакет с декоративными золотыми застёжками',
-    description: 'Элегантный укороченный жакет с архитектурным силуэтом и декоративными золотыми застёжками.',
-    price: 128900,
-    imageUrls: ['https://firebasestorage.googleapis.com/v0/b/studio-4612461108-2107c.firebasestorage.app/o/5208617976892954348.jpg?alt=media&token=89fc989a-e361-447a-ba06-98dce2f8e1fc'],
-    category: 'jacket',
-    sizes: ['XS', 'S', 'M', 'L'],
-    colors: ['black'],
-    ownerId: 'kira-selection-owner'
-  };
+  const merged = products
+    ? [...KIRA_CATALOG_PRODUCTS, ...products.filter((p) => !KIRA_CATALOG_ID_SET.has(p.id))]
+    : [...KIRA_CATALOG_PRODUCTS];
 
-  const hardcodedProduct2: Product & { id: string } = {
-    id: 'dress_evening_black_002',
-    name: 'Вечернее платье-бюстье с драпировкой',
-    description: 'Скульптурное вечернее платье-бюстье с архитектурным силуэтом и драпировкой.',
-    price: 189900,
-    imageUrls: ['https://firebasestorage.googleapis.com/v0/b/studio-4612461108-2107c.firebasestorage.app/o/IMG_6886%20(1).JPG?alt=media&token=cbefa4ee-f209-4a3c-a934-ce28258565ab'],
-    category: 'dress',
-    sizes: ['XS', 'S', 'M', 'L'],
-    colors: ['black'],
-    ownerId: 'kira-selection-owner'
-  };
-
-  const hardcodedProduct3: Product & { id: string } = {
-    id: 'skirt_leather_black_001',
-    name: 'Мини-юбка с драпировкой из эко-кожи',
-    description: 'Мини-юбка из эко-кожи с асимметричной драпировкой и высокой посадкой.',
-    price: 64900,
-    imageUrls: ['https://firebasestorage.googleapis.com/v0/b/studio-4612461108-2107c.firebasestorage.app/o/IMG_6887.JPG?alt=media&token=429738be-9f45-4bac-a933-07a0513741a1'],
-    category: 'skirt',
-    sizes: ['XS', 'S', 'M', 'L'],
-    colors: ['black'],
-    ownerId: 'kira-selection-owner'
-  };
-
-  const allProducts = (products 
-    ? [hardcodedProduct, hardcodedProduct2, hardcodedProduct3, ...products.filter(p => !['jacket_black_gold_001', 'dress_evening_black_002', 'skirt_leather_black_001'].includes(p.id))] 
-    : [hardcodedProduct, hardcodedProduct2, hardcodedProduct3]);
+  const allProducts = merged.filter((p) => !isProductHiddenByName(p.name || ""));
 
   if (isLoading) {
     return <Loading />;

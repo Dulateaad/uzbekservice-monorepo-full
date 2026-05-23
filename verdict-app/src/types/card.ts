@@ -40,6 +40,8 @@ export interface VerdictCard {
   qualityScore?: number;
   isBattleOfDay?: boolean;
   duplicateOf?: string;
+  /** Текущий голос пользователя (только клиент + Firestore, без POST API) */
+  userVote?: 'A' | 'B' | null;
 }
 
 export interface VoteResult {

@@ -358,7 +358,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   context.go('/home/specialist/${specialist.id}');
                 },
                 onBook: () {
-                  context.go('/home/order-create/${specialist.id}');
+                  context.go('/home/order/create/${specialist.id}');
                 },
               ),
             );

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../constants/app_constants.dart';
+import '../../../models/business_hub/business_vertical.dart';
 import '../../../providers/business_hub/bh_providers.dart';
 import '../../../providers/firestore_auth_provider.dart';
+import '../../../widgets/business_hub/business_vertical_picker.dart';
 
 class BHOnboardingScreen extends ConsumerStatefulWidget {
   const BHOnboardingScreen({super.key});
@@ -17,6 +19,7 @@ class _BHOnboardingScreenState extends ConsumerState<BHOnboardingScreen> {
   final _nameCtrl = TextEditingController();
   final _innCtrl = TextEditingController();
   String _industry = 'Услуги';
+  String _verticalId = BusinessVerticalIds.services;
   String _legalForm = 'ИП';
   int _employeeCount = 1;
   bool _creating = false;
@@ -31,8 +34,35 @@ class _BHOnboardingScreenState extends ConsumerState<BHOnboardingScreen> {
     'Общественное питание',
     'Образование',
     'Здравоохранение',
+    'Недвижимость',
     'Другое',
   ];
+
+  static String _industryForVertical(String verticalId) {
+    switch (verticalId) {
+      case BusinessVerticalIds.services:
+        return 'Услуги';
+      case BusinessVerticalIds.restaurant:
+        return 'Общественное питание';
+      case BusinessVerticalIds.retail:
+        return 'Торговля';
+      case BusinessVerticalIds.manufacturing:
+        return 'Производство';
+      case BusinessVerticalIds.realEstate:
+        return 'Недвижимость';
+      case BusinessVerticalIds.construction:
+        return 'Строительство';
+      default:
+        return 'Услуги';
+    }
+  }
+
+  void _applyVertical(String id) {
+    setState(() {
+      _verticalId = id;
+      _industry = _industryForVertical(id);
+    });
+  }
 
   static const _legalForms = ['ИП', 'ООО', 'ТОО', 'АО', 'МЧЖ', 'Другое'];
 
@@ -81,6 +111,22 @@ class _BHOnboardingScreenState extends ConsumerState<BHOnboardingScreen> {
               ),
             ),
             const SizedBox(height: 28),
+
+            const Text(
+              'Тип бизнеса',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Под этот тип подстраиваются подсказки и термины в Business Hub. Сферу деятельности ниже мы подставим автоматически; при необходимости измените вручную.',
+              style: TextStyle(color: AppConstants.textSecondary, fontSize: 13, height: 1.35),
+            ),
+            const SizedBox(height: 14),
+            BusinessVerticalPickerGrid(
+              selectedId: _verticalId,
+              onSelect: _applyVertical,
+            ),
+            const SizedBox(height: 24),
 
             // Name
             const Text('Название компании *', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -199,6 +245,7 @@ class _BHOnboardingScreenState extends ConsumerState<BHOnboardingScreen> {
         ownerId: user.id,
         name: _nameCtrl.text.trim(),
         industry: _industry,
+        businessVerticalId: _verticalId,
         inn: _innCtrl.text.trim().isEmpty ? null : _innCtrl.text.trim(),
         legalForm: _legalForm,
         employeeCount: _employeeCount,

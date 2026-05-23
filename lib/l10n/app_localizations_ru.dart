@@ -220,7 +220,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get onlyCompaniesCanCreate =>
-      'Только компании могут создавать вакансии';
+      'Размещать вакансии могут компании, специалисты и владельцы компании в Business Hub (создайте компанию в разделе Business Hub)';
 
   @override
   String get vacancyCreated => 'Вакансия создана!';

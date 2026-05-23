@@ -1,5 +1,7 @@
 import type {NextConfig} from 'next';
 import withPWA from 'next-pwa';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const defaultPwaCache = require('next-pwa/cache') as Array<Record<string, unknown>>;
 
 /**
  * Firebase App Hosting (Cloud Build) задаёт FIREBASE_APP_HOSTING и ждёт
@@ -57,6 +59,21 @@ const pwaConfig = withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  // Не кэшируем HTML-навигацию и *.txt (RSC flight при static export) — иначе после деплоя
+  // старый SW отдаёт trends.html / trends.txt со ссылками на удалённые чанки → 404.
+  runtimeCaching: [
+    {
+      urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+      handler: 'NetworkOnly',
+      method: 'GET',
+    },
+    {
+      urlPattern: ({ url }: { url: URL }) => url.pathname.endsWith('.txt'),
+      handler: 'NetworkOnly',
+      method: 'GET',
+    },
+    ...defaultPwaCache,
+  ],
 });
 
 export default pwaConfig(nextConfig);

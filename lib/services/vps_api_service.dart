@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 /// Сервис для работы с VPS API (хранение чувствительных данных в Узбекистане)
 class VpsApiService {
   // URL API сервера на VPS
-  // Для production используйте: 'https://api.webname.uz/api'
+  // TODO: Настройте HTTPS для production: 'https://api.webname.uz/api'
   static const String _baseUrl = 'http://95.46.96.53:3000/api';
+
+  static bool get _isBlocked => kIsWeb;
   
   // API ключ для аутентификации (в production используйте переменную окружения)
   // TODO: Вынесите в переменные окружения или secure storage
@@ -25,6 +28,7 @@ class VpsApiService {
     Map<String, dynamic>? location,
     bool isUzbekCitizen = true,
   }) async {
+    if (_isBlocked) return null;
     try {
       final url = Uri.parse('$_baseUrl/users/$userId/sensitive');
       
@@ -57,6 +61,7 @@ class VpsApiService {
   
   /// Получить чувствительные данные пользователя
   static Future<Map<String, dynamic>?> getUserSensitiveData(String userId) async {
+    if (_isBlocked) return null;
     try {
       final url = Uri.parse('$_baseUrl/users/$userId/sensitive');
       
@@ -81,6 +86,7 @@ class VpsApiService {
   
   /// Получить пользователя по номеру телефона
   static Future<Map<String, dynamic>?> getUserByPhone(String phoneNumber) async {
+    if (_isBlocked) return null;
     try {
       final encodedPhone = Uri.encodeComponent(phoneNumber);
       final url = Uri.parse('$_baseUrl/users/phone/$encodedPhone');
@@ -110,6 +116,7 @@ class VpsApiService {
     String? address,
     Map<String, dynamic>? location,
   }) async {
+    if (_isBlocked) return null;
     try {
       final url = Uri.parse('$_baseUrl/users/$userId/location');
       
@@ -145,6 +152,7 @@ class VpsApiService {
     Map<String, dynamic>? location,
     String? phoneNumber,
   }) async {
+    if (_isBlocked) return null;
     try {
       final url = Uri.parse('$_baseUrl/orders/$orderId/sensitive');
       
@@ -176,6 +184,7 @@ class VpsApiService {
   
   /// Проверка доступности API
   static Future<bool> checkHealth() async {
+    if (_isBlocked) return false;
     try {
       final url = Uri.parse('http://95.46.96.53:3000/health');
       final response = await http.get(url, headers: {'Connection': 'close'});

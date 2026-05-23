@@ -45,6 +45,11 @@ class NotificationNavigationProvider {
           }
           break;
           
+        case 'bh_crm_notification':
+          print('📱 Навигация: уведомления Business Hub CRM');
+          _router!.go('/home/services/business-hub/crm/notifications');
+          break;
+
         default:
           print('📱 Неизвестный тип уведомления: $type');
           // По умолчанию переходим на главную

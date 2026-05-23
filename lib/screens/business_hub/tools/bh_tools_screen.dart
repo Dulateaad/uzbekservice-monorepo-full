@@ -28,6 +28,13 @@ class BHToolsScreen extends StatelessWidget {
           onTap: () => context.push('/home/services/business-hub/tax'),
         ),
         _ToolTile(
+          icon: Icons.payments_outlined,
+          title: 'Финансы',
+          subtitle: 'Баланс, дебиторка, кредиторка',
+          color: const Color(0xFF0EA5E9),
+          onTap: () => context.push('/home/services/business-hub/finance'),
+        ),
+        _ToolTile(
           icon: Icons.people,
           title: 'HR — Сотрудники',
           subtitle: 'Управление сотрудниками и зарплатами',

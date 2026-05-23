@@ -15,7 +15,7 @@ const SUBSECTIONS = [
 
 export function KnowYourselfScreen({ onSelect }: KnowYourselfScreenProps) {
   return (
-    <div className="bg-[var(--tg-theme-bg-color)] text-[var(--tg-theme-text-color)] pb-[env(safe-area-inset-bottom)]">
+    <div className="h-full min-h-0 overflow-y-auto bg-[var(--tg-theme-bg-color)] text-[var(--tg-theme-text-color)] pb-[env(safe-area-inset-bottom)]">
       <main className="p-4">
         <p className="text-[var(--tg-theme-hint-color)] mb-4">Карточки для размышления</p>
         <div className="space-y-2">

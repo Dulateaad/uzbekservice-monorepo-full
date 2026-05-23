@@ -1,7 +1,7 @@
 "use strict";
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cpaPostbackOnUserCreate = exports.anamaMergePilotSession = exports.sendParentalConsentOtp = exports.sendTelegramMessage = exports.oneidUser = exports.oneidCallback = exports.oneidLogin = exports.oneidHealth = exports.clickWebhook = exports.clickComplete = exports.clickPrepare = void 0;
+exports.platformProcessNotificationOutbox = exports.onPlatformBusinessEventCreate = exports.platformEnqueueNotification = exports.platformEmitBusinessEvent = exports.erpAnalyticsDailyRollup = exports.onErpProductionRunUpdate = exports.onErpOrderUpdate = exports.onErpPaymentWrite = exports.erpPatchDeliveryStatus = exports.erpPosShift = exports.erpStockMove = exports.erpPatchOrderStatus = exports.erpRecordPayment = exports.erpCreateOrder = exports.onBhCrmNotificationPush = exports.cpaPostbackOnUserCreate = exports.anamaMergePilotSession = exports.sendParentalConsentOtp = exports.sendTelegramMessage = exports.oneidUser = exports.oneidCallback = exports.oneidLogin = exports.oneidHealth = exports.clickWebhook = exports.clickComplete = exports.clickPrepare = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
@@ -572,7 +572,7 @@ exports.sendParentalConsentOtp = functions.https.onRequest(async (req, res) => {
         const transporter = nodemailer.createTransport({
             host: EMAIL_HOST,
             port: EMAIL_PORT,
-            secure: EMAIL_PORT === 465,
+            secure: EMAIL_PORT === 465, // true для 465, false для других портов
             auth: {
                 user: EMAIL_USER,
                 pass: EMAIL_PASSWORD,
@@ -808,4 +808,26 @@ var anama_pilot_1 = require("./anama_pilot");
 Object.defineProperty(exports, "anamaMergePilotSession", { enumerable: true, get: function () { return anama_pilot_1.anamaMergePilotSession; } });
 var cpa_postback_1 = require("./cpa_postback");
 Object.defineProperty(exports, "cpaPostbackOnUserCreate", { enumerable: true, get: function () { return cpa_postback_1.cpaPostbackOnUserCreate; } });
+var bh_crm_push_1 = require("./bh_crm_push");
+Object.defineProperty(exports, "onBhCrmNotificationPush", { enumerable: true, get: function () { return bh_crm_push_1.onBhCrmNotificationPush; } });
+var callable_1 = require("./erp/callable");
+Object.defineProperty(exports, "erpCreateOrder", { enumerable: true, get: function () { return callable_1.erpCreateOrder; } });
+Object.defineProperty(exports, "erpRecordPayment", { enumerable: true, get: function () { return callable_1.erpRecordPayment; } });
+Object.defineProperty(exports, "erpPatchOrderStatus", { enumerable: true, get: function () { return callable_1.erpPatchOrderStatus; } });
+Object.defineProperty(exports, "erpStockMove", { enumerable: true, get: function () { return callable_1.erpStockMove; } });
+Object.defineProperty(exports, "erpPosShift", { enumerable: true, get: function () { return callable_1.erpPosShift; } });
+Object.defineProperty(exports, "erpPatchDeliveryStatus", { enumerable: true, get: function () { return callable_1.erpPatchDeliveryStatus; } });
+var triggers_1 = require("./erp/triggers");
+Object.defineProperty(exports, "onErpPaymentWrite", { enumerable: true, get: function () { return triggers_1.onErpPaymentWrite; } });
+Object.defineProperty(exports, "onErpOrderUpdate", { enumerable: true, get: function () { return triggers_1.onErpOrderUpdate; } });
+Object.defineProperty(exports, "onErpProductionRunUpdate", { enumerable: true, get: function () { return triggers_1.onErpProductionRunUpdate; } });
+var scheduled_1 = require("./erp/scheduled");
+Object.defineProperty(exports, "erpAnalyticsDailyRollup", { enumerable: true, get: function () { return scheduled_1.erpAnalyticsDailyRollup; } });
+var callable_2 = require("./platform/callable");
+Object.defineProperty(exports, "platformEmitBusinessEvent", { enumerable: true, get: function () { return callable_2.platformEmitBusinessEvent; } });
+Object.defineProperty(exports, "platformEnqueueNotification", { enumerable: true, get: function () { return callable_2.platformEnqueueNotification; } });
+var event_router_1 = require("./platform/event_router");
+Object.defineProperty(exports, "onPlatformBusinessEventCreate", { enumerable: true, get: function () { return event_router_1.onPlatformBusinessEventCreate; } });
+var scheduled_2 = require("./platform/scheduled");
+Object.defineProperty(exports, "platformProcessNotificationOutbox", { enumerable: true, get: function () { return scheduled_2.platformProcessNotificationOutbox; } });
 //# sourceMappingURL=index.js.map

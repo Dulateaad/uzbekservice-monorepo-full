@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/business_hub/lead.dart';
 import '../../models/business_hub/deal.dart';
+import '../../models/business_hub/organization_member.dart';
+import '../../models/business_hub/bh_installment.dart';
 import '../../models/business_hub/crm_company.dart';
 import '../../models/business_hub/crm_contact.dart';
 import '../../models/business_hub/crm_product.dart';
@@ -291,6 +293,7 @@ class BHCrmService {
     String? description,
     String? dealId,
     String? leadId,
+    String? workId,
     required String assignedTo,
     required DateTime dueDate,
     String? priority,
@@ -305,6 +308,7 @@ class BHCrmService {
       description: description,
       dealId: dealId,
       leadId: leadId,
+      workId: workId,
       assignedTo: assignedTo,
       dueDate: dueDate,
       priority: priority,
@@ -313,6 +317,16 @@ class BHCrmService {
       updatedAt: now,
     );
     await _crmTasks.doc(id).set(t.toMap());
+    await createCrmNotification(
+      organizationId: organizationId,
+      userId: assignedTo,
+      type: BHCrmNotificationType.newCrmTask,
+      title: 'Новая задача',
+      body: title,
+      dealId: dealId,
+      leadId: leadId,
+      workId: workId,
+    );
     return t;
   }
 
@@ -421,6 +435,8 @@ class BHCrmService {
     required String body,
     String? dealId,
     String? leadId,
+    String? workId,
+    String? installmentId,
   }) async {
     final id = _uuid.v4();
     final n = BHCrmNotification(
@@ -432,6 +448,8 @@ class BHCrmService {
       body: body,
       dealId: dealId,
       leadId: leadId,
+      workId: workId,
+      installmentId: installmentId,
       createdAt: DateTime.now(),
     );
     await _crmNotifs.doc(id).set(n.toMap());
@@ -542,6 +560,70 @@ class BHCrmService {
           body: d.title,
           dealId: d.id,
         );
+      }
+    }
+  }
+
+  /// Напоминания по графику оплат (T−1 и просрочка), идемпотентно по дню.
+  Future<void> syncInstallmentPaymentNotifications(String organizationId) async {
+    final rows = await _bh.getInstallmentsForOrganization(organizationId);
+    final members = await _bh.getMembers(organizationId);
+    final targets =
+        members.where((m) => m.role != BHMemberRole.viewer).map((m) => m.userId).toSet();
+    if (targets.isEmpty) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+
+    for (final row in rows) {
+      if (row.status == BHInstallmentStatus.paid) {
+        continue;
+      }
+      final due = DateTime(row.dueDate.year, row.dueDate.month, row.dueDate.day);
+
+      if (due == tomorrow) {
+        for (final uid in targets) {
+          final docId =
+              'pay_${organizationId}_${row.id}_tom_${uid}_${today.year}_${today.month}_${today.day}';
+          final ref = _crmNotifs.doc(docId);
+          if ((await ref.get()).exists) {
+            continue;
+          }
+          await ref.set(BHCrmNotification(
+            id: docId,
+            organizationId: organizationId,
+            userId: uid,
+            type: BHCrmNotificationType.paymentDueTomorrow,
+            title: 'Платёж завтра',
+            body: '${row.remaining.toStringAsFixed(0)} ${row.currency} по графику',
+            workId: row.workId,
+            installmentId: row.id,
+            createdAt: DateTime.now(),
+          ).toMap());
+        }
+      } else if (due.isBefore(today)) {
+        for (final uid in targets) {
+          final docId =
+              'pay_${organizationId}_${row.id}_od_${uid}_${today.year}_${today.month}_${today.day}';
+          final ref = _crmNotifs.doc(docId);
+          if ((await ref.get()).exists) {
+            continue;
+          }
+          await ref.set(BHCrmNotification(
+            id: docId,
+            organizationId: organizationId,
+            userId: uid,
+            type: BHCrmNotificationType.paymentOverdue,
+            title: 'Просроченный платёж',
+            body: '${row.remaining.toStringAsFixed(0)} ${row.currency}',
+            workId: row.workId,
+            installmentId: row.id,
+            createdAt: DateTime.now(),
+          ).toMap());
+        }
       }
     }
   }

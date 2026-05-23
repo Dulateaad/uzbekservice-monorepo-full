@@ -10,18 +10,22 @@ import 'bh_leads_screen.dart';
 import 'bh_deals_screen.dart';
 
 class BHCRMScreen extends ConsumerStatefulWidget {
-  const BHCRMScreen({super.key});
+  const BHCRMScreen({super.key, this.initialTabIndex = 0});
+
+  /// 0 Дашборд, 1 Лиды, 2 Воронка, 3 Задачи, 4 Ещё
+  final int initialTabIndex;
 
   @override
   ConsumerState<BHCRMScreen> createState() => _BHCRMScreenState();
 }
 
 class _BHCRMScreenState extends ConsumerState<BHCRMScreen> {
-  int _tabIndex = 0;
+  late int _tabIndex;
 
   @override
   void initState() {
     super.initState();
+    _tabIndex = widget.initialTabIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 

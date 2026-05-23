@@ -124,6 +124,7 @@ class _BHWorksScreenState extends ConsumerState<BHWorksScreen> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
+                          onTap: () => context.push('/home/services/business-hub/works/detail', extra: w),
                           leading: CircleAvatar(
                             backgroundColor: _colorForType(w.type).withValues(alpha: 0.2),
                             child: Icon(_iconForType(w.type), color: _colorForType(w.type), size: 20),

@@ -21,7 +21,7 @@ const EMOJIS: Record<string, string> = {
 export function FlowScreen({ onSelect }: FlowScreenProps) {
   const { t } = useLocale();
   return (
-    <div className="bg-[var(--app-bg)] text-[var(--app-text)] pb-[env(safe-area-inset-bottom)]">
+    <div className="h-full min-h-0 overflow-y-auto bg-[var(--app-bg)] text-[var(--app-text)] pb-[env(safe-area-inset-bottom)]">
       <main className="p-3">
         <p className="text-[var(--app-text-muted)] text-sm mb-3">{t.chooseCardType}</p>
         <div className="space-y-1.5">

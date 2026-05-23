@@ -16,6 +16,7 @@ import '../vacancy/company_dashboard_screen.dart';
 import '../business_hub/bh_main_screen.dart';
 import '../chat/chat_list_screen.dart';
 import '../../providers/firestore_auth_provider.dart';
+import '../../providers/main_shell_tab_provider.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -25,8 +26,6 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
-  int _currentIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(firestoreAuthProvider);
@@ -149,25 +148,32 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ];
     }
 
-    // Вычисляем высоту island navigation для padding
-    final islandHeight = 90.0; // Примерная высота island navigation
-    
+    final storedTab = ref.watch(mainShellTabIndexProvider);
+    final currentIndex =
+        storedTab < screens.length ? storedTab : 0;
+    if (storedTab != currentIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(mainShellTabIndexProvider.notifier).state = currentIndex;
+      });
+    }
+
+    // Высота «островка» + нижний inset (home indicator); без лишнего зазора под панелью
+    final islandHeight = 90.0;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       body: Stack(
         children: [
-          // Обертываем экраны в Padding, чтобы контент не перекрывался island navigation
           Padding(
-            padding: EdgeInsets.only(bottom: islandHeight + AppConstants.spacingMD),
-            child: screens[_currentIndex],
+            padding: EdgeInsets.only(bottom: islandHeight + bottomInset),
+            child: screens[currentIndex],
           ),
           IslandNavigation(
-            currentIndex: _currentIndex,
+            currentIndex: currentIndex,
             items: navigationItems,
             onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
+              ref.read(mainShellTabIndexProvider.notifier).state = index;
             },
           ),
           // Кнопка Odo Business Hub удалена - теперь она в NewClientHomeScreen под баннером

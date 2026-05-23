@@ -61,7 +61,8 @@ export function MainLayout({ activeTab, onTabChange, children, onSearchClick, on
         </nav>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-auto bg-[var(--app-bg)]">{children}</main>
+      {/* overflow-hidden: иначе вертикальный жест уходит в scroll main и не доходит до ленты (TikTok-свайп) */}
+      <main className="flex-1 min-h-0 overflow-hidden flex flex-col bg-[var(--app-bg)]">{children}</main>
     </div>
   );
 }

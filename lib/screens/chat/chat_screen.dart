@@ -8,6 +8,20 @@ import '../../providers/chat_providers.dart';
 import '../../models/chat_models.dart';
 import '../../models/firestore_models.dart';
 
+Map<String, dynamic> _mapFromFirestoreDynamic(dynamic value) {
+  if (value == null) return {};
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return {};
+}
+
+Map<String, dynamic>? _optionalMapFromFirestoreDynamic(dynamic value) {
+  if (value == null) return null;
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return null;
+}
+
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
 
@@ -146,7 +160,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         title: chatInfoAsync.when(
           data: (info) {
-            final specialist = info['specialist'] as Map<String, dynamic>? ?? {};
+            final specialist = _mapFromFirestoreDynamic(info['specialist']);
             final specialistName = specialist['name'] ?? 'Специалист';
             final specialistAvatar = specialist['avatarUrl'] as String?;
             final isOnline = specialist['isOnline'] as bool? ?? false;
@@ -212,7 +226,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // Информация о заказе
           chatInfoAsync.when(
             data: (info) {
-              final order = info['order'] as Map<String, dynamic>?;
+              final order = _optionalMapFromFirestoreDynamic(info['order']);
               if (order != null) {
                 return _buildOrderInfo(order);
               }
@@ -363,7 +377,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             text: 'Детали',
             onPressed: () {
               if (orderModel.id != null) {
-                context.push('/home/orders/${orderModel.id}');
+                context.push('/home/order/${orderModel.id}');
               }
             },
             type: ButtonType.secondary,
@@ -468,7 +482,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     
     return chatInfoAsync.when(
       data: (info) {
-        final specialist = info['specialist'] as Map<String, dynamic>? ?? {};
+        final specialist = _mapFromFirestoreDynamic(info['specialist']);
         final specialistName = specialist['name'] ?? 'Специалист';
         final specialistAvatar = specialist['avatarUrl'] as String?;
 
@@ -643,8 +657,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             chatInfoAsync.when(
               data: (info) {
-                final order = info['order'] as Map<String, dynamic>?;
-                final specialist = info['specialist'] as Map<String, dynamic>? ?? {};
+                final order = _optionalMapFromFirestoreDynamic(info['order']);
+                final specialist = _mapFromFirestoreDynamic(info['specialist']);
                 final phoneNumber = specialist['phoneNumber'] as String?;
 
                 return Column(
@@ -657,7 +671,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           Navigator.pop(context);
                           final orderModel = FirestoreOrder.fromMap(order);
                           if (orderModel.id != null) {
-                            context.push('/home/orders/${orderModel.id}');
+                            context.push('/home/order/${orderModel.id}');
                           }
                         },
                       ),
@@ -695,8 +709,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     
     chatInfoAsync.when(
       data: (info) {
-        final order = info['order'] as Map<String, dynamic>?;
-        final specialist = info['specialist'] as Map<String, dynamic>? ?? {};
+        final order = _optionalMapFromFirestoreDynamic(info['order']);
+        final specialist = _mapFromFirestoreDynamic(info['specialist']);
         final phoneNumber = specialist['phoneNumber'] as String?;
 
         showModalBottomSheet(

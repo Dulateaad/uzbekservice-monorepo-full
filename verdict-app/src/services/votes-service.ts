@@ -17,13 +17,20 @@ export async function getUserVotes(userId: string, maxCount = 500): Promise<User
     const votes = snapshot.docs.map((d) => {
       const data = d.data();
       return {
-        cardId: data.cardId,
+        cardId: data.cardId as string,
         choice: (data.choice ?? 'A') as 'A' | 'B',
         createdAt: data.createdAt?.toMillis?.() ?? Date.now(),
       };
     });
     votes.sort((a, b) => b.createdAt - a.createdAt);
-    return votes.slice(0, maxCount);
+    const byCard = new Map<string, UserVote>();
+    for (const v of votes) {
+      if (!v.cardId) continue;
+      if (!byCard.has(v.cardId)) byCard.set(v.cardId, v);
+    }
+    return Array.from(byCard.values())
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, maxCount);
   } catch {
     return [];
   }

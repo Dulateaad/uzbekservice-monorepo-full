@@ -47,13 +47,16 @@ dependencies:
   firebase_storage: ^12.4.0
   firebase_messaging: ^15.2.0
   firebase_analytics: ^11.3.3
+  firebase_database: ^11.2.0
+  cloud_functions: ^5.2.0
   
   # Image handling
   image_picker: ^1.0.4
   cached_network_image: ^3.3.0
   
-  # Maps & Location
-  google_maps_flutter: ^2.5.0
+  # Maps & Location (бесплатные тайлы OSM/CARTO через flutter_map; без Google Maps SDK)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
   geolocator: ^10.1.0
   geocoding: ^2.1.1
   
@@ -87,7 +90,6 @@ dependencies:
   pdf: ^3.10.7
   printing: ^5.12.0
   google_generative_ai: ^0.4.3
-  google_mlkit_text_recognition: ^0.11.0
   share_plus: ^7.2.1
   path_provider: ^2.1.2
   csv: ^6.0.0
@@ -112,6 +114,8 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/translations/
+    - assets/config/
+    - assets/data/
   
   # fonts:
   #   - family: Roboto

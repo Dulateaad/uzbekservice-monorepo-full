@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../providers/vacancy_providers.dart';
 import '../../providers/firestore_auth_provider.dart';
+import '../../providers/business_hub/bh_providers.dart';
+import '../../utils/vacancy_post_permission.dart';
 import '../../widgets/vacancy_card.dart';
 import '../../l10n/app_localizations.dart';
 import 'intent_selection_screen.dart';
@@ -22,6 +24,12 @@ class _VacancyListScreenState extends ConsumerState<VacancyListScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(firestoreAuthProvider).user;
+      if (user != null) {
+        ref.read(bhOrganizationProvider.notifier).loadByOwner(user.id);
+      }
+    });
   }
 
   @override
@@ -35,6 +43,134 @@ class _VacancyListScreenState extends ConsumerState<VacancyListScreen> {
     ref.read(vacancyFilterProvider.notifier).setSearch(_searchController.text);
   }
 
+  void _showVacancyFilterSheet() {
+    final locationController = TextEditingController(
+      text: ref.read(vacancyFilterProvider).location ?? '',
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final filter = ref.watch(vacancyFilterProvider);
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: AppConstants.spacingLG,
+                  right: AppConstants.spacingLG,
+                  top: AppConstants.spacingLG,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom +
+                      AppConstants.spacingLG,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Фильтры',
+                            style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(sheetContext),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppConstants.spacingMD),
+                      TextField(
+                        controller: locationController,
+                        decoration: const InputDecoration(
+                          labelText: 'Город или регион',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: AppConstants.spacingMD),
+                      Text(
+                        'Зарплата от',
+                        style: Theme.of(sheetContext).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: AppConstants.spacingSM),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Без ограничения'),
+                            selected:
+                                filter.salaryMin == null && filter.salaryMax == null,
+                            onSelected: (_) {
+                              ref
+                                  .read(vacancyFilterProvider.notifier)
+                                  .setSalaryRange(null, null);
+                            },
+                          ),
+                          ChoiceChip(
+                            label: const Text('от 5 млн сум'),
+                            selected: filter.salaryMin == 5000000,
+                            onSelected: (_) {
+                              ref
+                                  .read(vacancyFilterProvider.notifier)
+                                  .setSalaryRange(5000000, null);
+                            },
+                          ),
+                          ChoiceChip(
+                            label: const Text('от 10 млн сум'),
+                            selected: filter.salaryMin == 10000000,
+                            onSelected: (_) {
+                              ref
+                                  .read(vacancyFilterProvider.notifier)
+                                  .setSalaryRange(10000000, null);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppConstants.spacingLG),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                ref.read(vacancyFilterProvider.notifier).reset();
+                                ref.read(selectedIntentProvider.notifier).state = null;
+                                locationController.clear();
+                                Navigator.pop(sheetContext);
+                              },
+                              child: const Text('Сбросить всё'),
+                            ),
+                          ),
+                          const SizedBox(width: AppConstants.spacingMD),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () {
+                                ref
+                                    .read(vacancyFilterProvider.notifier)
+                                    .setLocation(locationController.text);
+                                Navigator.pop(sheetContext);
+                              },
+                              child: const Text('Применить'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(locationController.dispose);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -44,6 +180,9 @@ class _VacancyListScreenState extends ConsumerState<VacancyListScreen> {
     final filter = ref.watch(vacancyFilterProvider);
     final authState = ref.watch(firestoreAuthProvider);
     final user = authState.user;
+    final bhOrg = ref.watch(bhOrganizationProvider).valueOrNull;
+    final canCreateVacancy =
+        user != null && userCanPostVacancy(user, bhOrg);
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
@@ -52,6 +191,16 @@ class _VacancyListScreenState extends ConsumerState<VacancyListScreen> {
         backgroundColor: AppConstants.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
         actions: [
           // Кнопка "Мои отклики" для пользователей и специалистов
           Consumer(
@@ -72,9 +221,7 @@ class _VacancyListScreenState extends ConsumerState<VacancyListScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // TODO: Открыть экран фильтров
-            },
+            onPressed: _showVacancyFilterSheet,
           ),
         ],
       ),
@@ -157,8 +304,8 @@ class _VacancyListScreenState extends ConsumerState<VacancyListScreen> {
                 ],
               ),
             ),
-          // Кнопка для компаний - создать вакансию
-          if (user != null && user.userType == 'company')
+          // Компания, специалист или владелец Business Hub
+          if (canCreateVacancy)
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppConstants.spacingMD,

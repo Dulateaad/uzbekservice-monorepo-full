@@ -72,10 +72,6 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
               _buildBannerCarousel(),
               
               const SizedBox(height: AppConstants.spacingLG),
-
-              _buildBrainRegionsCard(context, ref),
-              
-              const SizedBox(height: AppConstants.spacingLG),
               
               // Categories Section
               _buildCategoriesSection(),
@@ -555,7 +551,7 @@ class _NewClientHomeScreenState extends ConsumerState<NewClientHomeScreen> {
                       context.go('/home/specialist/${specialist.id}');
                     },
                     onBook: () {
-                      context.go('/home/order-create/${specialist.id}');
+                      context.go('/home/order/create/${specialist.id}');
                     },
                     onChat: () {
                       // TODO: Navigate to chat

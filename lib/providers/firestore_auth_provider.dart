@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/firestore_models.dart';
 import '../services/firestore_service.dart';
 import '../services/test_data_service.dart';
@@ -142,16 +141,6 @@ class FirestoreAuthNotifier extends StateNotifier<FirestoreAuthState> {
       }
 
       print('✅ Twilio: SMS код подтвержден для $phoneNumber');
-
-      // Авторизуемся анонимно в Firebase Auth для доступа к Firestore
-      try {
-        if (FirebaseAuth.instance.currentUser == null) {
-          await FirebaseAuth.instance.signInAnonymously();
-          print('✅ Firebase Anonymous Auth: вход выполнен');
-        }
-      } catch (e) {
-        print('⚠️ Firebase Anonymous Auth ошибка: $e');
-      }
 
       // Используем номер телефона как идентификатор (вместо Firebase UID)
       final phoneId = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
