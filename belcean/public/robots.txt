@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://beclean-pro.example.com/sitemap.xml

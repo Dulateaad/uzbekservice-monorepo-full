@@ -1,0 +1,65 @@
+{
+  "hosting": {
+    "public": "apps/web/out",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "player-one-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/jobs/**",
+        "run": {
+          "serviceId": "player-one-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/mocap/**",
+        "run": {
+          "serviceId": "player-one-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/actions/**",
+        "run": {
+          "serviceId": "player-one-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/dna/**",
+        "run": {
+          "serviceId": "player-one-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/risk/**",
+        "run": {
+          "serviceId": "player-one-api",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=31536000,immutable"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "placeholderImages": [
+    {
+      "id": "service-office",
+      "description": "A bright and clean modern office space with empty chairs and desks.",
+      "imageUrl": "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjbGVhbiUyMG9mZmljZXxlbnwwfHx8fDE3Njk0MzQ4NTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "clean office"
+    },
+    {
+      "id": "service-subscription",
+      "description": "A calendar with marked dates symbolizing a regular cleaning schedule.",
+      "imageUrl": "https://images.unsplash.com/photo-1642360912445-61d71dd98400?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjYWxlbmRhciUyMHNjaGVkdWxlfGVufDB8fHx8MTc2OTQyODk5NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "calendar schedule"
+    },
+    {
+      "id": "service-general",
+      "description": "A person using a floor polishing machine on a shiny floor.",
+      "imageUrl": "https://images.unsplash.com/photo-1696025522422-aa9a74e4f3d5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxmbG9vciUyMHBvbGlzaGluZ3xlbnwwfHx8fDE3Njk0MzQ4NjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "floor polishing"
+    },
+    {
+      "id": "service-construction",
+      "description": "A newly constructed room with some dust and debris, ready for cleaning.",
+      "imageUrl": "https://images.unsplash.com/photo-1567954970774-58d6aa6c50dc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjb25zdHJ1Y3Rpb24lMjBzaXRlfGVufDB8fHx8MTc2OTMyNTA2NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "construction site"
+    },
+    {
+      "id": "service-windows",
+      "description": "A window cleaner using a squeegee on a large glass window, with a clear view outside.",
+      "imageUrl": "https://images.unsplash.com/photo-1524803504179-6d7ae4d283f7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8d2luZG93JTIwY2xlYW5pbmd8ZW58MHx8fHwxNzY5Mzk4MTgwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "window cleaning"
+    },
+    {
+      "id": "service-furniture",
+      "description": "A close-up of a steam cleaner being used on a sofa cushion.",
+      "imageUrl": "https://images.unsplash.com/photo-1764788596507-3cb8d248fcc3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx1cGhvbHN0ZXJ5JTIwY2xlYW5pbmd8ZW58MHx8fHwxNzY5NDM0ODU5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "upholstery cleaning"
+    },
+    {
+      "id": "map",
+      "description": "A stylized map of a city center with a pin marker.",
+      "imageUrl": "https://images.unsplash.com/photo-1603466183710-70b84997a93f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjaXR5JTIwbWFwfGVufDB8fHx8MTc2OTMzMTgxOHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "city map"
+    },
+    {
+      "id": "testimonial-1",
+      "description": "A smiling person in business attire.",
+      "imageUrl": "https://images.unsplash.com/photo-1552058544-f2b08422138a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb258ZW58MHx8fHwxNzY5Mzg5NzU3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person"
+    },
+    {
+      "id": "testimonial-2",
+      "description": "A person with glasses looking professional.",
+      "imageUrl": "https://images.unsplash.com/photo-1627813173262-fa4cd4fa7d5e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBnbGFzc2VzfGVufDB8fHx8MTc2OTM3MDQ4NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person glasses"
+    },
+    {
+      "id": "testimonial-3",
+      "description": "A friendly looking person.",
+      "imageUrl": "https://images.unsplash.com/photo-1580929571530-51780c506410?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBmcmllbmRseXxlbnwwfHx8fDE3NjkzNzk5OTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person friendly"
+    },
+    {
+      "id": "calculator-hero",
+      "description": "A person using a calculator with cleaning supplies in the background.",
+      "imageUrl": "https://images.unsplash.com/photo-1637239990694-ba96d4b80acc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjYWxjdWxhdG9yJTIwY2xlYW5pbmd8ZW58MHx8fHwxNzY5NDM0ODU5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "calculator cleaning"
+    },
+    {
+      "id": "thank-you",
+      "description": "A person holding a thank you sign.",
+      "imageUrl": "https://images.unsplash.com/photo-1602045486350-4e53a69865c6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx0aGFuayUyMHlvdXxlbnwwfHx8fDE3Njk0MzQ4NTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "thank you"
+    },
+    {
+      "id": "hero-carousel-1",
+      "description": "A professional cleaner in uniform wiping a glass door.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-590355839-601a4.firebasestorage.app/o/photo_5193048351077765425_x.jpg?alt=media&token=6514e6a8-1710-49eb-9158-09dcf4ff3a21",
+      "imageHint": "professional cleaning"
+    },
+    {
+      "id": "hero-carousel-2",
+      "description": "A professional cleaner vacuuming the floor in an office.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-590355839-601a4.firebasestorage.app/o/photo_5193048351077765427_y.jpg?alt=media&token=10c804ec-b9fc-4d63-a540-147d7112eca4",
+      "imageHint": "floor vacuuming"
+    }
+  ]
+}

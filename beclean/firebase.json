@@ -1,0 +1,9 @@
+{
+  "apphosting": [
+    {
+      "backendId": "studio",
+      "rootDir": "./frontend",
+      "alwaysDeployFromSource": true
+    }
+  ]
+}

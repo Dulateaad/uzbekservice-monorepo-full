@@ -1,0 +1,88 @@
+Greenflowers — Firebase (бэкенд + деплой)
+
+1) Создай проект в Firebase Console: https://console.firebase.google.com
+   — Включи Authentication (Phone и/или Email), Firestore.
+
+2) CLI:
+   npm i -g firebase-tools
+   firebase login
+   cd greenflowers   (корень, где лежат firebase.json и functions/)
+   Замени YOUR_FIREBASE_PROJECT_ID в .firebaserc на реальный ID.
+   firebase use --add
+
+3) Установка зависимостей функций:
+   cd functions && npm install && cd ..
+
+4) Переменные для Functions (Console → Functions → sprayApi → Environment):
+   SMSC_LOGIN, SMSC_PASSWORD — для SMS; DEV_MODE=true — показывать код в ответе send-sms (только тест).
+   PUBLIC_BASE_URL=https://europe-west3-PROJECT.cloudfunctions.net/sprayApi — для абсолютных URL картинок.
+
+5) Деплой правил, индексов и функций:
+   firebase deploy --only firestore:rules,firestore:indexes
+   firebase deploy --only functions
+   Важно: Cloud Functions (2nd gen) требуют план Blaze (pay-as-you-go).
+   Без Blaze можно деплоить только Firestore rules / indexes.
+   Апгрейд: Firebase Console → проект → Usage / план.
+
+6) URL API после деплоя (пример):
+   https://europe-west3-YOUR_PROJECT_ID.cloudfunctions.net/sprayApi
+   Полный префикс как у старого сервера:
+   BASE = https://europe-west3-YOUR_PROJECT_ID.cloudfunctions.net/sprayApi
+   Health: BASE/api/health
+
+7) Фронт (sdfg):
+   В .env.local:
+   NEXT_PUBLIC_API_URL=<BASE>/api
+   NEXT_PUBLIC_FIREBASE_API_KEY=...
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+   NEXT_PUBLIC_FIREBASE_APP_ID=...
+   BACKEND_ORIGIN=<BASE>
+   (BACKEND_ORIGIN нужен для rewrites в next.config — запросы на /api/* с браузера)
+
+8) Вход (опционально Firebase Auth): настрой Phone Auth в консоли.
+   POST /api/users/me с Bearer — для синка профиля; основной вход приложения — SMS-коды через API.
+
+9) Данные Firestore: коллекции users, products, cart_items, orders, sms_codes, meta.
+   Товары из PostgreSQL не переносятся сами — импорт в products (пример полей: functions/sample-product.json).
+
+10) Перенос остального: смены, календарь, CRM — заглушки в functions/lib/apiStubs.js (501 или пустые массивы).
+
+11) Фронт на Firebase Hosting (папка sdfg уже прописана в firebase.json → hosting.source)
+   — Нужен план Blaze (SSR идёт в отдельную Cloud Function, напр. ssrgreenflowers15776).
+   — Один раз: firebase experiments:enable webframeworks
+   — В sdfg положи .env.production (шаблон: sdfg/.env.production.example) с URL sprayApi
+     и теми же NEXT_PUBLIC_FIREBASE_* что в .env.local.
+   — Из корня проекта (где firebase.json):
+     cd .../greenflowers/greenflowers
+     firebase deploy --only hosting
+   — Сайт: https://greenflowers-15776.web.app (и .firebaseapp.com)
+   — Если при сборке ошибка spawn next EACCES: chmod +x sdfg/node_modules/.bin/next
+   — Интеграция Next.js в Hosting официально заявлена для версий 12–15; у тебя Next 16 —
+     при ошибках сборки смотри лог или временно понизь версию next в sdfg/package.json.
+
+12) Альтернатива фронту: Cloud Run / свой VPS.
+
+13) Ошибка: "Unable to set the invoker for the IAM policy" (sprayApi)
+    — Нужны права менять IAM у Cloud Run (Gen2 = Cloud Run). Роли на свой аккаунт в проекте:
+      Cloud Run Admin (roles/run.admin) и/или Security Admin, либо владелец проекта (Owner).
+    — Вручную: Google Cloud Console → Cloud Run → сервис с именем как у функции (sprayapi)
+      → вкладка Security / Permissions → Add principal → allUsers → роль "Cloud Run Invoker".
+    — Если проект в организации: политика может запрещать allUsers — смотри Organization policies
+      (restrict public access / domain restricted sharing); нужен админ организации.
+    — После ручного invoker повтори: firebase deploy --only functions
+
+14) Ошибка деплоя SSR: "Could not build the function due to a missing permission
+    on the build service account"
+    — Открой лог Cloud Build по ссылке из терминала и посмотри, какое именно DENIED.
+    — Частое решение (Google Cloud Console → IAM, проект greenflowers-15776):
+      для аккаунта 908356545040-compute@developer.gserviceaccount.com
+      добавь роли: Artifact Registry Writer, Logs Writer, Storage Object Viewer
+      (или Storage Object Admin на bucket gcf-v2-sources-* если в логе про bucket).
+    — Документация: cloud.google.com/functions/docs/troubleshooting (раздел
+      "Build service account missing permissions") и
+      cloud.google.com/build/docs/cloud-build-service-account-updates
+    — Если проект в организации Google Workspace — возможна org policy
+      (domain restricted sharing и т.д.), тогда нужен админ организации.

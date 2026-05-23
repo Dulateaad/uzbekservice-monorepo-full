@@ -1,0 +1,71 @@
+# Быстрые команды для тестирования API
+
+## Проверка подключения к БД
+curl http://localhost:5000/api/db-test
+
+## Регистрация нового пользователя
+curl -X POST http://localhost:5000/api/users/register ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"test@example.com\",\"password\":\"password123\",\"name\":\"Тестовый Пользователь\",\"phone\":\"+7 777 123 4567\",\"city\":\"Алматы\"}"
+
+## Авторизация
+curl -X POST http://localhost:5000/api/users/login ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"test@example.com\",\"password\":\"password123\"}"
+
+## Получить все цветы
+curl http://localhost:5000/api/products
+
+## Получить цветок по ID
+curl http://localhost:5000/api/products/1
+
+# ===== ADMIN КОМАНДЫ =====
+
+## Получить всех пользователей (нужны права admin)
+curl "http://localhost:5000/api/users/admin/users?adminId=1"
+
+## Изменить роль пользователя (adminId=1 меняет роль userId=2 на worker)
+curl -X PUT http://localhost:5000/api/users/admin/users/2/role ^
+  -H "Content-Type: application/json" ^
+  -d "{\"adminId\":1,\"newRole\":\"worker\"}"
+
+## Удалить пользователя
+curl -X DELETE "http://localhost:5000/api/users/admin/users/3?adminId=1"
+
+# ===== WORKER/ADMIN КОМАНДЫ =====
+
+## Добавить новый цветок (userId должен быть worker или admin)
+curl -X POST http://localhost:5000/api/products ^
+  -H "Content-Type: application/json" ^
+  -d "{\"userId\":1,\"name\":\"Желтые тюльпаны\",\"category\":\"tulips\",\"color\":\"yellow\",\"variety\":\"Spring Beauty\",\"description\":\"Яркие желтые тюльпаны\",\"price_per_unit\":0.60,\"price_per_box\":40.00,\"stock_quantity\":400,\"min_order_quantity\":50,\"stem_length\":\"50cm\",\"packaging_type\":\"Box of 100\",\"image_url\":\"/yellow-tulips.jpg\"}"
+
+## Редактировать цветок
+curl -X PUT http://localhost:5000/api/products/1 ^
+  -H "Content-Type: application/json" ^
+  -d "{\"userId\":1,\"name\":\"Красные розы Премиум\",\"category\":\"roses\",\"color\":\"red\",\"variety\":\"Red Pearl\",\"description\":\"Обновленное описание\",\"price_per_unit\":0.90,\"price_per_box\":48.00,\"stock_quantity\":600,\"min_order_quantity\":50,\"stem_length\":\"60cm\",\"packaging_type\":\"Box of 50\",\"image_url\":\"/red-roses.jpg\"}"
+
+## Удалить цветок (только admin)
+curl -X DELETE "http://localhost:5000/api/products/1?adminId=1"
+
+# ===== ЗАКАЗЫ =====
+
+## Создать заказ (userId - это user который заказывает)
+curl -X POST http://localhost:5000/api/orders ^
+  -H "Content-Type: application/json" ^
+  -d "{\"userId\":2,\"items\":[{\"product_id\":1,\"quantity\":100},{\"product_id\":2,\"quantity\":50}],\"delivery_city\":\"Алматы\",\"delivery_address\":\"ул. Абая 123\",\"delivery_date\":\"2025-01-20\",\"payment_method\":\"kaspi_qr\",\"notes\":\"Доставить утром\"}"
+
+## Получить заказы пользователя
+curl http://localhost:5000/api/orders/user/2
+
+## Получить все заказы (worker или admin)
+curl "http://localhost:5000/api/orders/all?userId=1"
+
+## Подтвердить заказ (worker или admin)
+curl -X PUT http://localhost:5000/api/orders/1/confirm ^
+  -H "Content-Type: application/json" ^
+  -d "{\"userId\":1}"
+
+## Изменить статус заказа
+curl -X PUT http://localhost:5000/api/orders/1/status ^
+  -H "Content-Type: application/json" ^
+  -d "{\"userId\":1,\"status\":\"in_transit\"}"

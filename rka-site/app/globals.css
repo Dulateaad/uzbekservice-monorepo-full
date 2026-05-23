@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-source), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-merri), "Georgia", ui-serif, serif;
+  --color-rka-navy: #0a0f1a;
+  --color-rka-navy-mid: #121a2e;
+  --color-rka-navy-soft: #1a2540;
+  --color-rka-accent: #1e3a8a;
+  --color-rka-accent-bright: #2563eb;
+  --color-rka-gold: #c4a035;
+  --color-rka-gold-muted: #d4bc6a;
+  --color-rka-muted: #f3f4f6;
+  --color-rka-paper: #fafaf9;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-rka-paper);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Equal-height news cards */
+.news-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Article body — чуть шире межстрочный интервал */
+.article-prose {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: #292524;
+}
+
+.article-prose p + p {
+  margin-top: 1rem;
+}
+
+/* Карточка — лёгкий подъём при наведении */
+.card-media {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease;
+}
+
+.card-media:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 20px 40px -20px rgb(15 23 42 / 0.18),
+    0 0 0 1px rgb(15 23 42 / 0.06);
+}
+
+/* Тонкая сетка на фоне героя */
+.bg-grid-faint {
+  background-image: linear-gradient(
+      rgb(15 23 42 / 0.03) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgb(15 23 42 / 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}

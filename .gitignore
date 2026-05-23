@@ -51,6 +51,9 @@ app.*.map.json
 *.key
 *.pem
 secrets/
+verdict-app/service-account.json
+android/key.properties
+*.jks
 
 # Firebase
 .firebase/

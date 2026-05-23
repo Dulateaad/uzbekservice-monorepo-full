@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-muted-foreground: #737373;
+  --color-ring: #94a3b8;
+}
+
+html {
+  scroll-behavior: smooth;
+}

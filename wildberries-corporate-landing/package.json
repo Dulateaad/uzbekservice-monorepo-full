@@ -1,0 +1,29 @@
+{
+  "name": "wildberries-corporate-landing",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "start": "next start -p 3010",
+    "lint": "eslint .",
+    "export": "next build",
+    "deploy": "npm run build && firebase deploy --only hosting --project wildberries-ee62e"
+  },
+  "dependencies": {
+    "lucide-react": "^0.454.0",
+    "next": "16.0.7",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.9",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.1.9",
+    "tw-animate-css": "1.3.3",
+    "typescript": "^5"
+  }
+}

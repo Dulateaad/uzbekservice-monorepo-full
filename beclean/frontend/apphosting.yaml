@@ -1,0 +1,12 @@
+# Firebase App Hosting — beclean.uz
+# https://firebase.google.com/docs/app-hosting/configure
+#
+# ВАЖНО: Укажите NEXT_PUBLIC_API_URL в Firebase Console (Backend → Settings → Environment)
+# или замените значение ниже на URL Cloud Run (https://api.beclean.uz или xxx.run.app)
+
+env:
+  - variable: NEXT_PUBLIC_API_URL
+    value: "https://api.beclean.uz"
+    availability:
+      - BUILD
+      - RUNTIME

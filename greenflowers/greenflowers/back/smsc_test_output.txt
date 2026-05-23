@@ -1,0 +1,59 @@
+
+🧪 Тестирование SMSC.KZ API с разными форматами номера
+SMSC Login: Sula_Bula
+Message: Код: 123456
+──────────────────────────────────────────────────────────────────────
+
+📤 Формат номера: без плюса
+   Значение: 77012345678
+   HTTP Status: 200
+   Ответ: "ERROR = 9 (duplicate request, wait a minute)"
+   Время ответа: 0.43s
+   Message ID: ERROR = 9 (duplicate request, Статус:  wait a minute)
+   ❌ Неизвестный статус:  wait a minute)
+
+📤 Формат номера: с плюсом
+   Значение: +77012345678
+   HTTP Status: 200
+   Ответ: "ERROR = 9 (duplicate request, wait a minute)"
+   Время ответа: 0.25s
+   Message ID: ERROR = 9 (duplicate request, Статус:  wait a minute)
+   ❌ Неизвестный статус:  wait a minute)
+
+📤 Формат номера: с URL кодированием +
+   Значение: %2B77012345678
+   HTTP Status: 200
+   Ответ: "ERROR = 9 (duplicate request, wait a minute)"
+   Время ответа: 0.29s
+   Message ID: ERROR = 9 (duplicate request, Статус:  wait a minute)
+   ❌ Неизвестный статус:  wait a minute)
+
+📤 Формат номера: только 10 цифр
+   Значение: 7012345678
+   HTTP Status: 200
+   Ответ: "ERROR = 9 (duplicate request, wait a minute)"
+   Время ответа: 0.20s
+   Message ID: ERROR = 9 (duplicate request, Статус:  wait a minute)
+   ❌ Неизвестный статус:  wait a minute)
+
+📤 Формат номера: другой формат
+   Значение: 77012345678
+   HTTP Status: 200
+   Ответ: "ERROR = 9 (duplicate request, wait a minute)"
+   Время ответа: 0.26s
+   Message ID: ERROR = 9 (duplicate request, Статус:  wait a minute)
+   ❌ Неизвестный статус:  wait a minute)
+
+──────────────────────────────────────────────────────────────────────
+
+📊 Итоги тестирования:
+   ✅ Успешно/В очереди: 0
+   ❌ Ошибок: 5
+
+📝 Рекомендация:
+   ❌ Ни один формат не работает. Проверьте:
+   - Доступность API SMSC.KZ
+   - Правильность логина и пароля в .env
+   - Баланс счёта на SMSC.KZ
+
+✓ Результаты сохранены в smsc_test_results.json

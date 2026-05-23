@@ -1,0 +1,139 @@
+openapi: 3.0.3
+info:
+  title: DCH Telemed API
+  version: 0.1.0
+  description: HTTP API Cloud Function `dchApi` (Express). Базовый URL — `https://<region>-<project>.cloudfunctions.net/dchApi`.
+servers:
+  - url: https://us-central1-your-dch-firebase-project.cloudfunctions.net/dchApi
+
+paths:
+  /health:
+    get:
+      summary: Проверка живости
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+
+  /appointments/{appointmentId}/video/prepare:
+    post:
+      summary: Создать комнату Daily и записать meta в Firestore
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Метаданные комнаты
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roomName: { type: string }
+                  roomUrl: { type: string }
+                  alreadyExisted: { type: boolean }
+
+  /video/token:
+    post:
+      summary: Meeting token для врача или пациента (пациент с grantId в body)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointmentId, role]
+              properties:
+                appointmentId: { type: string }
+                role:
+                  type: string
+                  enum: [doctor, patient]
+                grantId:
+                  type: string
+                  description: Обязательно для role=patient
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  roomUrl: { type: string }
+
+  /video/token-by-grant:
+    post:
+      summary: Токен пациента только по grant из ссылки (?g=)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grantId]
+              properties:
+                grantId: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  roomUrl: { type: string }
+                  appointmentId: { type: string }
+
+  /notify/appointment-link:
+    post:
+      summary: Создать join_grant и отправить ссылку (внутренний ключ)
+      parameters:
+        - name: X-Internal-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointmentId]
+              properties:
+                appointmentId: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  grantId: { type: string }
+                  joinUrl: { type: string }
+
+  /webhooks/daily:
+    post:
+      summary: Webhook Daily.co (подпись X-Webhook-Signature)
+      responses:
+        '200': { description: Accepted }
+        '401': { description: invalid_signature }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,37 @@
+[
+  {
+    "format": "без плюса",
+    "phone": "77012345678",
+    "status": "error",
+    "response": "ERROR = 9 (duplicate request, wait a minute)",
+    "error": "Неизвестный статус:  wait a minute)"
+  },
+  {
+    "format": "с плюсом",
+    "phone": "+77012345678",
+    "status": "error",
+    "response": "ERROR = 9 (duplicate request, wait a minute)",
+    "error": "Неизвестный статус:  wait a minute)"
+  },
+  {
+    "format": "с URL кодированием +",
+    "phone": "%2B77012345678",
+    "status": "error",
+    "response": "ERROR = 9 (duplicate request, wait a minute)",
+    "error": "Неизвестный статус:  wait a minute)"
+  },
+  {
+    "format": "только 10 цифр",
+    "phone": "7012345678",
+    "status": "error",
+    "response": "ERROR = 9 (duplicate request, wait a minute)",
+    "error": "Неизвестный статус:  wait a minute)"
+  },
+  {
+    "format": "другой формат",
+    "phone": "77012345678",
+    "status": "error",
+    "response": "ERROR = 9 (duplicate request, wait a minute)",
+    "error": "Неизвестный статус:  wait a minute)"
+  }
+]

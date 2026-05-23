@@ -1,0 +1,11 @@
+__pycache__
+config.json
+.gemini_api_key
+.mp/
+venv/
+Songs/
+google-maps-scraper-0.9.7/
+niche.txt
+*.exe
+auto.sh
+.DS_Store

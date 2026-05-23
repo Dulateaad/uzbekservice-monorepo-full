@@ -1,0 +1,9 @@
+**/node_modules/
+**/lib/
+**/.env
+**/.env.local
+**/.env.*.local
+**/dist/
+.firebase/
+*.log
+functions/.secret.local

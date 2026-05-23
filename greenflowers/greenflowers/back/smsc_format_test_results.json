@@ -1,0 +1,39 @@
+{
+  "test_time": "2026-03-30 00:31:21",
+  "test_phone": "77777777777",
+  "test_code": "812675",
+  "results": [
+    {
+      "format": "Формат 1: без плюса (полный)",
+      "phone": "77777777777",
+      "status": "ERROR_6",
+      "response": "ERROR = 6 (message is denied), ID - 30"
+    },
+    {
+      "format": "Формат 2: с плюсом",
+      "phone": "+77777777777",
+      "status": "ERROR_6",
+      "response": "ERROR = 6 (message is denied), ID - 31"
+    },
+    {
+      "format": "Формат 3: 10 цифр (без 7)",
+      "phone": "7777777777",
+      "status": "ERROR_7",
+      "response": "ERROR = 7 (invalid number), ID - 32"
+    },
+    {
+      "format": "Формат 4: URL encoded +",
+      "phone": "%2B77777777777",
+      "status": "ERROR_3",
+      "response": "ERROR = 3 (no money), ID - 33"
+    },
+    {
+      "format": "Формат 5: с кодом страны 8",
+      "phone": "87777777777",
+      "status": "ERROR_6",
+      "response": "ERROR = 6 (message is denied), ID - 34"
+    }
+  ],
+  "success_count": 0,
+  "successful_formats": []
+}

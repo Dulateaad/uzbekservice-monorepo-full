@@ -1,0 +1,145 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isStaff() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role in ['admin', 'worker', 'employee'];
+    }
+
+    /** Админ: роль в профиле (допускаем разный регистр при записи из клиентов). */
+    function isAdminProfile() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && (
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin'
+          || get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'Admin'
+        );
+    }
+
+    /** Клиент уменьшает только stock_quantity (оформление заказа). */
+    function isDecreaseProductsStock() {
+      return request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock_quantity'])
+        && request.resource.data.stock_quantity is int
+        && resource.data.stock_quantity is int
+        && request.resource.data.stock_quantity >= 0
+        && request.resource.data.stock_quantity <= resource.data.stock_quantity;
+    }
+
+    /** Клиент уменьшает только quantity на позиции склада. */
+    function isDecreaseInventoryQty() {
+      return request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity'])
+        && request.resource.data.quantity is int
+        && resource.data.quantity is int
+        && request.resource.data.quantity >= 0
+        && request.resource.data.quantity <= resource.data.quantity;
+    }
+
+    // Профиль по email (совпадает с Firebase Auth) — для входа без sprayApi
+    match /users/{userId} {
+      allow read: if request.auth != null && (
+        (resource.data.email is string && request.auth.token.email != null
+          && resource.data.email.lower() == request.auth.token.email.lower())
+        || (resource.data.phone is string && request.auth.token.phone_number != null
+          && resource.data.phone == request.auth.token.phone_number)
+      );
+      allow write: if false;
+    }
+
+    // Кэш профиля по UID (пишет клиент после первого входа).
+    // Чтение всех profiles — только staff (список менеджеров в админке).
+    match /profiles/{uid} {
+      allow read: if request.auth != null && (
+        request.auth.uid == uid
+        || isStaff()
+      );
+      // Создание своего профиля при первом входе ИЛИ админом при регистрации нового uid (Auth создаётся отдельно)
+      allow create: if request.auth != null && (
+        request.auth.uid == uid
+        || isAdminProfile()
+      );
+      allow update: if request.auth != null && (
+        request.auth.uid == uid
+        || isAdminProfile()
+      );
+      allow delete: if isAdminProfile();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if isStaff();
+      allow update: if isStaff() || isDecreaseProductsStock();
+    }
+
+    // Категории цветов (справочник для админки и фильтров)
+    match /flower_categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    // Фуры и склад (поставки) — чтение публичное (витрина показывает фуры), правки — staff
+    match /trucks/{truckId} {
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    // Позиции склада: витрина для клиентов читает цены/остатки; правки — только staff
+    match /inventory_items/{itemId} {
+      allow read: if true;
+      allow create, delete: if isStaff();
+      allow update: if isStaff() || isDecreaseInventoryQty();
+    }
+
+    // Заказы: свои или staff
+    match /orders/{orderId} {
+      allow read: if request.auth != null && (
+        resource.data.firebase_uid == request.auth.uid
+        || isStaff()
+      );
+      allow create: if request.auth != null
+        && request.resource.data.firebase_uid == request.auth.uid;
+      allow update, delete: if isStaff();
+    }
+
+    // Корзина: только свои строки
+    match /cart_items/{itemId} {
+      allow read: if request.auth != null
+        && resource.data.firebase_uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.firebase_uid == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && resource.data.firebase_uid == request.auth.uid;
+    }
+
+    match /sms_codes/{phone} {
+      allow read, write: if false;
+    }
+
+    match /meta/{docId} {
+      allow read, write: if false;
+    }
+
+    match /login_logs/{docId} {
+      allow read, write: if false;
+    }
+
+    match /users_by_uid/{uid} {
+      allow read, write: if false;
+    }
+
+    match /_health/{docId} {
+      allow read, write: if false;
+    }
+
+    // Публичные настройки витрины (баннер предзаказа и т.п.)
+    match /site_settings/{docId} {
+      allow read: if true;
+      allow create, update: if isStaff();
+      allow delete: if isAdminProfile();
+    }
+  }
+}

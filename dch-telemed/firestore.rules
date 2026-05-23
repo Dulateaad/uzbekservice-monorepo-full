@@ -1,0 +1,30 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Врач видит свои приёмы; пациент — только через сервер (join grant), не через прямой read записи.
+    match /appointments/{appointmentId} {
+      allow read: if signedIn()
+        && resource.data.doctorId == request.auth.uid;
+
+      allow create, update, delete: if false;
+
+      match /video_events/{eventId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Одноразовые приглашения: клиент не читает напрямую — только Cloud Functions.
+    match /join_grants/{grantId} {
+      allow read, write: if false;
+    }
+
+    match /webhook_idempotency/{eventId} {
+      allow read, write: if false;
+    }
+  }
+}

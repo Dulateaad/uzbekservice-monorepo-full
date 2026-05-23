@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Сканер карточек маркетплейса",
+  "version": "0.1.0",
+  "description": "Сбор названия, описания, цен и ссылок на фото с карточки товара; выгрузка в Excel.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Сканер маркетплейса"
+  },
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://www.wildberries.ru/*",
+    "https://wildberries.ru/*",
+    "https://www.ozon.ru/*",
+    "https://ozon.ru/*",
+    "https://www.lamoda.ru/*",
+    "https://lamoda.ru/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.wildberries.ru/*",
+        "https://wildberries.ru/*",
+        "https://www.ozon.ru/*",
+        "https://ozon.ru/*",
+        "https://www.lamoda.ru/*",
+        "https://lamoda.ru/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

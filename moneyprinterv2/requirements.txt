@@ -1,0 +1,21 @@
+wheel
+termcolor
+schedule
+requests
+kittentts @ https://github.com/KittenML/KittenTTS/releases/download/0.8.1/kittentts-0.8.1-py3-none-any.whl
+soundfile
+prettytable
+webdriver_manager
+selenium_firefox
+# selenium_firefox imports selenium.webdriver.firefox.firefox_binary (removed in Selenium 4.11+)
+selenium>=4.0,<4.11
+ollama
+# v2 removed moviepy.editor; project uses v1 API
+moviepy>=1.0.3,<2
+Pillow>=10.0.0
+yagmail
+assemblyai
+faster-whisper
+srt_equalizer
+undetected_chromedriver
+platformdirs

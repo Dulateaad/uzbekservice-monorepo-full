@@ -1,0 +1,17 @@
+{
+  "id": 1,
+  "name": "Роза тест",
+  "category": "Розы",
+  "color": "красный",
+  "variety": "Explorer",
+  "description": "Импортируй в Firestore: коллекция products, id документа \"1\"",
+  "price_per_unit": 150,
+  "price_per_box": 1500,
+  "stock_quantity": 100,
+  "min_order_quantity": 1,
+  "stem_length": "60",
+  "packaging_type": "пучок",
+  "image_url": null,
+  "next_delivery_date": null,
+  "created_at": null
+}

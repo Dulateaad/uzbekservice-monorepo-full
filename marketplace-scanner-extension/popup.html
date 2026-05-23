@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Сканер</title>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Карточка → Excel</h1>
+      <p class="hint">Откройте страницу товара на WB / Ozon / Lamoda и нажмите «Собрать».</p>
+      <div class="row">
+        <button type="button" id="btn-scrape" class="btn primary">Собрать с этой вкладки</button>
+      </div>
+      <div class="row">
+        <button type="button" id="btn-export" class="btn">Экспорт в Excel</button>
+        <button type="button" id="btn-clear" class="btn danger">Очистить буфер</button>
+      </div>
+      <p id="status" class="status" role="status"></p>
+      <p class="meta">В буфере: <strong id="count">0</strong> строк</p>
+    </main>
+    <script type="module" src="/src/popup/main.ts"></script>
+  </body>
+</html>
